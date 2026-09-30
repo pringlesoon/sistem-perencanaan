@@ -97,10 +97,12 @@ export default function Navbar({ currentTab, setCurrentTab }) {
 
                     {/* Right Tools: Notif Bell, User Info */}
                     <div className="flex items-center space-x-3">
-                        {/* In-App Notifications */}
-                        <NotificationBell onOpenPermohonan={(id) => {
-                            setCurrentTab('tracking');
-                        }} />
+                        {/* In-App Notifications (Hanya jika user login) */}
+                        {user && (
+                            <NotificationBell onOpenPermohonan={(id) => {
+                                setCurrentTab('tracking');
+                            }} />
+                        )}
 
                         {/* User Profile Pill */}
                         <div className="relative">

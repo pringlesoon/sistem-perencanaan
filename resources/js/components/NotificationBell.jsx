@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { Bell, CheckCheck, Info, CheckCircle2, AlertTriangle, AlertCircle, X } from 'lucide-react';
 
 export default function NotificationBell({ onOpenPermohonan, placement = 'sidebar' }) {
+    const { user } = useAuth();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
@@ -10,11 +12,16 @@ export default function NotificationBell({ onOpenPermohonan, placement = 'sideba
     const popoverRef = useRef(null);
 
     const fetchNotifications = async () => {
+        if (!user) {
+            setNotifications([]);
+            setUnreadCount(0);
+            return;
+        }
         try {
             const res = await api.get('/notifications');
             if (res.data?.status === 'success') {
-                setNotifications(res.data.data.notifications);
-                setUnreadCount(res.data.data.unread_count);
+                setNotifications(res.data.data.notifications || []);
+                setUnreadCount(res.data.data.unread_count || 0);
             }
         } catch (e) {
             // silent fail
@@ -22,10 +29,17 @@ export default function NotificationBell({ onOpenPermohonan, placement = 'sideba
     };
 
     useEffect(() => {
+        if (!user) {
+            setNotifications([]);
+            setUnreadCount(0);
+            setIsOpen(false);
+            return;
+        }
+
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 20000);
         return () => clearInterval(interval);
-    }, []);
+    }, [user]);
 
     // Close on click outside and escape key
     useEffect(() => {
@@ -84,6 +98,10 @@ export default function NotificationBell({ onOpenPermohonan, placement = 'sideba
                 return <Info className="w-4 h-4 text-sky-500 shrink-0" />;
         }
     };
+
+    if (!user) {
+        return null;
+    }
 
     return (
         <div className="relative" ref={popoverRef}>

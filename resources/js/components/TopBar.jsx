@@ -74,11 +74,13 @@ export default function TopBar({ currentTab, setCurrentTab, onMobileMenuOpen }) 
 
                 {/* Right: Tools */}
                 <div className="flex items-center space-x-2">
-                    {/* Notification Bell */}
-                    <NotificationBell
-                        onOpenPermohonan={() => setCurrentTab('tracking')}
-                        placement="navbar"
-                    />
+                    {/* Notification Bell (Hanya ditampilkan jika akun sudah login) */}
+                    {user && (
+                        <NotificationBell
+                            onOpenPermohonan={() => setCurrentTab('tracking')}
+                            placement="navbar"
+                        />
+                    )}
 
                     {/* User Profile or Login Button */}
                     {!user ? (
