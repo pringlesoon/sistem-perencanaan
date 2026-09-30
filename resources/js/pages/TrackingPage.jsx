@@ -32,7 +32,12 @@ import {
     List,
     LayoutGrid,
     AlertCircle,
-    ChevronRight
+    ChevronRight,
+    Video,
+    Gift,
+    Megaphone,
+    Palette,
+    Camera
 } from 'lucide-react';
 
 // --- Service definitions ---
@@ -181,7 +186,12 @@ const getFullServiceName = (obj) => {
 
 // Detail section that shows form-specific fields
 function RequestFormDetail({ detail }) {
+    if (!detail) return null;
     const serviceCode = detail.service?.code || (detail.kategori === 'Desain' ? 'D' : detail.kategori === 'Publikasi' ? 'P' : detail.kategori === 'Suvenir' ? 'S' : detail.kategori === 'Multimedia' ? 'M' : detail.kategori === 'Liputan' ? 'L' : null);
+
+    const formData = (typeof detail.form_data === 'string')
+        ? (() => { try { return JSON.parse(detail.form_data); } catch { return {}; } })()
+        : (detail.form_data || {});
 
     return (
         <div className="space-y-4">
@@ -250,9 +260,9 @@ function RequestFormDetail({ detail }) {
                             <Video className="w-4 h-4 text-emerald-600" />
                             <span>Rincian Pengajuan Layanan Multimedia</span>
                         </h4>
-                        {detail.form_data?.jenis_kebutuhan && (
+                        {Array.isArray(formData?.jenis_kebutuhan) && formData.jenis_kebutuhan.length > 0 && (
                             <div className="flex flex-wrap gap-1">
-                                {detail.form_data.jenis_kebutuhan.map((jk, i) => (
+                                {formData.jenis_kebutuhan.map((jk, i) => (
                                     <span key={i} className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-[10px] font-bold">
                                         {jk}
                                     </span>
@@ -265,42 +275,42 @@ function RequestFormDetail({ detail }) {
                         <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase block">Tanggal Produksi / Pelaksanaan</span>
                             <span className="font-bold text-slate-900">
-                                {detail.multimedia_detail?.tanggal_pelaksanaan || detail.form_data?.tanggal_produksi || detail.tanggal_dibutuhkan || '-'}
+                                {detail.multimedia_detail?.tanggal_pelaksanaan || formData?.tanggal_produksi || detail.tanggal_dibutuhkan || '-'}
                             </span>
                         </div>
                         <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase block">Waktu Operasional / Jam</span>
                             <span className="font-bold text-slate-900">
-                                {detail.multimedia_detail ? `${detail.multimedia_detail.jam_mulai?.slice(0, 5)} - ${detail.multimedia_detail.jam_selesai?.slice(0, 5)} WIB (${formatDurasi(detail.multimedia_detail.durasi_menit)})` : (detail.form_data?.jam_mulai ? `${detail.form_data.jam_mulai} - ${detail.form_data.jam_selesai} WIB` : '-')}
+                                {detail.multimedia_detail ? `${detail.multimedia_detail.jam_mulai?.slice(0, 5)} - ${detail.multimedia_detail.jam_selesai?.slice(0, 5)} WIB (${formatDurasi(detail.multimedia_detail.durasi_menit)})` : (formData?.jam_mulai ? `${formData.jam_mulai} - ${formData.jam_selesai} WIB` : '-')}
                             </span>
                         </div>
                         <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase block">Ruangan / Lokasi Alat</span>
                             <span className="font-bold text-slate-900">
-                                {detail.multimedia_detail?.lokasi_alat || detail.form_data?.lokasi_produksi || 'Studio Podcast'}
+                                {detail.multimedia_detail?.lokasi_alat || formData?.lokasi_produksi || 'Studio Podcast'}
                             </span>
                         </div>
                         <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase block">Output yang Diharapkan</span>
                             <span className="font-bold text-slate-900">
-                                {detail.form_data?.output_diharapkan || '-'}
+                                {formData?.output_diharapkan || '-'}
                             </span>
                         </div>
-                        {detail.form_data?.narasumber_talent && (
+                        {formData?.narasumber_talent && (
                             <div className="sm:col-span-2">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Narasumber / Talent</span>
-                                <span className="font-semibold text-slate-800">{detail.form_data.narasumber_talent}</span>
+                                <span className="font-semibold text-slate-800">{formData.narasumber_talent}</span>
                             </div>
                         )}
-                        {detail.form_data?.konsep_konten && (
+                        {formData?.konsep_konten && (
                             <div className="sm:col-span-2 p-2.5 bg-emerald-50/50 rounded-lg border border-emerald-100">
                                 <span className="text-[10px] font-bold text-emerald-900 uppercase block mb-1">Konsep & Kebutuhan Konten</span>
-                                <p className="text-xs text-slate-700 whitespace-pre-wrap">{detail.form_data.konsep_konten}</p>
+                                <p className="text-xs text-slate-700 whitespace-pre-wrap">{formData.konsep_konten}</p>
                             </div>
                         )}
-                        {detail.form_data?.nama_pic_kegiatan && (
+                        {formData?.nama_pic_kegiatan && (
                             <div className="sm:col-span-2 text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-                                PIC Lapangan: <strong>{detail.form_data.nama_pic_kegiatan}</strong> (WA: {detail.form_data.no_whatsapp_pic || '-'})
+                                PIC Lapangan: <strong>{formData.nama_pic_kegiatan}</strong> (WA: {formData.no_whatsapp_pic || '-'})
                             </div>
                         )}
                     </div>
@@ -315,22 +325,22 @@ function RequestFormDetail({ detail }) {
                             <Gift className="w-4 h-4 text-amber-600" />
                             <span>Rincian Pengajuan Alat Promosi & Suvenir</span>
                         </h4>
-                        {detail.form_data?.kategori_kegiatan && (
+                        {formData?.kategori_kegiatan && (
                             <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[10px] font-black">
-                                Kategori: {detail.form_data.kategori_kegiatan}
+                                Kategori: {formData.kategori_kegiatan}
                             </span>
                         )}
                     </div>
 
                     {/* Tabel Daftar Souvenir yang Diajukan */}
-                    {detail.form_data?.souvenir_items && detail.form_data.souvenir_items.length > 0 ? (
+                    {Array.isArray(formData?.souvenir_items) && formData.souvenir_items.length > 0 ? (
                         <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
                             <div className="px-3 py-2 bg-amber-100/60 font-bold text-[11px] text-amber-900 flex justify-between">
                                 <span>Daftar Item Suvenir yang Diajukan</span>
                                 <span>Jumlah</span>
                             </div>
                             <div className="divide-y divide-slate-100">
-                                {detail.form_data.souvenir_items.map((it, idx) => (
+                                {formData.souvenir_items.map((it, idx) => (
                                     <div key={idx} className="px-3 py-2 flex items-center justify-between text-xs">
                                         <span className="font-bold text-slate-800">{it.nama_item}</span>
                                         <span className="font-mono font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
@@ -397,19 +407,19 @@ function RequestFormDetail({ detail }) {
                             <Megaphone className="w-4 h-4 text-sky-600" />
                             <span>Rincian Pengajuan Publikasi Medsos & Website</span>
                         </h4>
-                        {detail.form_data?.tanggal_publikasi && (
+                        {formData?.tanggal_publikasi && (
                             <span className="px-2.5 py-0.5 bg-sky-100 text-sky-800 rounded-full text-[10px] font-black">
-                                Target Tayang: {detail.form_data.tanggal_publikasi}
+                                Target Tayang: {formData.tanggal_publikasi}
                             </span>
                         )}
                     </div>
 
                     <div className="bg-white p-3.5 rounded-xl border border-sky-100 space-y-2.5 text-slate-700">
-                        {detail.form_data?.media_publikasi && (
+                        {Array.isArray(formData?.media_publikasi) && formData.media_publikasi.length > 0 && (
                             <div>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Kanal Media Publikasi</span>
                                 <div className="flex flex-wrap gap-1.5">
-                                    {detail.form_data.media_publikasi.map((m, idx) => (
+                                    {formData.media_publikasi.map((m, idx) => (
                                         <span key={idx} className="px-2.5 py-1 bg-sky-50 border border-sky-200 text-sky-800 rounded-lg text-xs font-bold">
                                             {m}
                                         </span>
@@ -418,25 +428,25 @@ function RequestFormDetail({ detail }) {
                             </div>
                         )}
 
-                        {detail.form_data?.isi_caption && (
+                        {formData?.isi_caption && (
                             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                                 <span className="text-[10px] font-bold text-slate-500 uppercase block">Draft Isi / Caption</span>
-                                <p className="text-xs text-slate-800 whitespace-pre-wrap">{detail.form_data.isi_caption}</p>
+                                <p className="text-xs text-slate-800 whitespace-pre-wrap">{formData.isi_caption}</p>
                             </div>
                         )}
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
-                            {detail.form_data?.tag_mention && (
+                            {formData?.tag_mention && (
                                 <div>
                                     <span className="text-slate-400 block font-bold uppercase text-[10px]">Tag / Mention Akun:</span>
-                                    <span className="font-bold text-sky-700">{detail.form_data.tag_mention}</span>
+                                    <span className="font-bold text-sky-700">{formData.tag_mention}</span>
                                 </div>
                             )}
-                            {detail.form_data?.link_drive && (
+                            {formData?.link_drive && (
                                 <div>
                                     <span className="text-slate-400 block font-bold uppercase text-[10px]">Link Google Drive:</span>
-                                    <a href={detail.form_data.link_drive} target="_blank" rel="noreferrer" className="text-indigo-600 font-bold underline truncate block">
-                                        {detail.form_data.link_drive}
+                                    <a href={formData.link_drive} target="_blank" rel="noreferrer" className="text-indigo-600 font-bold underline truncate block">
+                                        {formData.link_drive}
                                     </a>
                                 </div>
                             )}
@@ -457,26 +467,26 @@ function RequestFormDetail({ detail }) {
                             <Palette className="w-4 h-4 text-indigo-600" />
                             <span>Rincian Pengajuan Desain Grafis</span>
                         </h4>
-                        {detail.form_data?.deadline && (
+                        {formData?.deadline && (
                             <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 rounded-full text-[10px] font-black">
-                                Deadline: {detail.form_data.deadline}
+                                Deadline: {formData.deadline}
                             </span>
                         )}
                     </div>
 
                     <div className="bg-white p-3.5 rounded-xl border border-indigo-100 space-y-3 text-slate-700">
-                        {detail.form_data?.jenis_desain && (
+                        {Array.isArray(formData?.jenis_desain) && formData.jenis_desain.length > 0 && (
                             <div>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Jenis Desain yang Diminta</span>
                                 <div className="flex flex-wrap gap-1.5">
-                                    {detail.form_data.jenis_desain.map((jd, idx) => (
+                                    {formData.jenis_desain.map((jd, idx) => (
                                         <span key={idx} className="px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-md text-[11px] font-bold">
                                             {jd}
                                         </span>
                                     ))}
-                                    {detail.form_data.jenis_desain_lainnya && (
+                                    {formData?.jenis_desain_lainnya && (
                                         <span className="px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-800 rounded-md text-[11px] font-bold">
-                                            {detail.form_data.jenis_desain_lainnya}
+                                            {formData.jenis_desain_lainnya}
                                         </span>
                                     )}
                                 </div>
@@ -484,30 +494,30 @@ function RequestFormDetail({ detail }) {
                         )}
 
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
-                            {detail.form_data?.ukuran_desain && (
+                            {formData?.ukuran_desain && (
                                 <div>
                                     <span className="text-slate-400 block font-bold uppercase text-[10px]">Ukuran Desain:</span>
-                                    <span className="font-bold text-slate-800">{detail.form_data.ukuran_desain}</span>
+                                    <span className="font-bold text-slate-800">{formData.ukuran_desain}</span>
                                 </div>
                             )}
-                            {detail.form_data?.media_penggunaan && (
+                            {formData?.media_penggunaan && (
                                 <div>
                                     <span className="text-slate-400 block font-bold uppercase text-[10px]">Media Penggunaan:</span>
-                                    <span className="font-bold text-slate-800">{detail.form_data.media_penggunaan}</span>
+                                    <span className="font-bold text-slate-800">{formData.media_penggunaan}</span>
                                 </div>
                             )}
-                            {detail.form_data?.referensi_desain && (
+                            {formData?.referensi_desain && (
                                 <div>
                                     <span className="text-slate-400 block font-bold uppercase text-[10px]">Referensi Desain:</span>
-                                    <span className="font-bold text-indigo-700 truncate block">{detail.form_data.referensi_desain}</span>
+                                    <span className="font-bold text-indigo-700 truncate block">{formData.referensi_desain}</span>
                                 </div>
                             )}
                         </div>
 
-                        {detail.form_data?.informasi_dicantumkan && (
+                        {formData?.informasi_dicantumkan && (
                             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                                 <span className="text-[10px] font-bold text-slate-500 uppercase block">Informasi Wajib Dicantumkan</span>
-                                <p className="text-xs text-slate-800 whitespace-pre-wrap">{detail.form_data.informasi_dicantumkan}</p>
+                                <p className="text-xs text-slate-800 whitespace-pre-wrap">{formData.informasi_dicantumkan}</p>
                             </div>
                         )}
 
@@ -526,9 +536,9 @@ function RequestFormDetail({ detail }) {
                             <Camera className="w-4 h-4 text-rose-600" />
                             <span>Rincian Pengajuan Peliputan & Berita</span>
                         </h4>
-                        {detail.form_data?.jenis_peliputan && (
+                        {Array.isArray(formData?.jenis_peliputan) && formData.jenis_peliputan.length > 0 && (
                             <div className="flex gap-1">
-                                {detail.form_data.jenis_peliputan.map((jp, idx) => (
+                                {formData.jenis_peliputan.map((jp, idx) => (
                                     <span key={idx} className="px-2 py-0.5 bg-rose-100 text-rose-800 rounded-md text-[10px] font-bold">
                                         {jp}
                                     </span>
@@ -542,21 +552,21 @@ function RequestFormDetail({ detail }) {
                             <div>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Waktu Peliputan</span>
                                 <span className="font-bold text-slate-900">
-                                    {detail.form_data?.waktu_peliputan || detail.tanggal_dibutuhkan || '-'}
+                                    {formData?.waktu_peliputan || detail.tanggal_dibutuhkan || '-'}
                                 </span>
                             </div>
-                            {detail.form_data?.pimpinan_tamu_hadir && (
+                            {formData?.pimpinan_tamu_hadir && (
                                 <div>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase block">Pimpinan / Tamu yang Hadir</span>
-                                    <span className="font-bold text-slate-900">{detail.form_data.pimpinan_tamu_hadir}</span>
+                                    <span className="font-bold text-slate-900">{formData.pimpinan_tamu_hadir}</span>
                                 </div>
                             )}
                         </div>
 
-                        {detail.form_data?.rundown_acara && (
+                        {formData?.rundown_acara && (
                             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                                 <span className="text-[10px] font-bold text-slate-500 uppercase block">Rundown Acara</span>
-                                <p className="text-xs text-slate-800 whitespace-pre-wrap">{detail.form_data.rundown_acara}</p>
+                                <p className="text-xs text-slate-800 whitespace-pre-wrap">{formData.rundown_acara}</p>
                             </div>
                         )}
 
