@@ -79,59 +79,61 @@ function AppContent() {
                     onMobileMenuOpen={() => setMobileOpen(true)}
                 />
 
-                {/* Scrollable content area */}
+                {/* Scrollable content area with sticky/natural bottom footer */}
                 <div className="flex-1 overflow-y-auto">
-                    <main>
-                        {currentTab === 'dashboard' && (
-                            <DashboardPage
-                                onSelectService={handleSelectService}
-                                onGoToTracking={() => setCurrentTab('tracking')}
-                            />
-                        )}
+                    <div className="min-h-full flex flex-col">
+                        <main className="flex-1">
+                            {currentTab === 'dashboard' && (
+                                <DashboardPage
+                                    onSelectService={handleSelectService}
+                                    onGoToTracking={() => setCurrentTab('tracking')}
+                                />
+                            )}
 
-                        {currentTab === 'request-form' && (
-                            <RequestFormPage
-                                serviceCode={selectedServiceCode}
-                                onBack={() => setCurrentTab('dashboard')}
-                                onSuccess={() => setCurrentTab('tracking')}
-                            />
-                        )}
+                            {currentTab === 'request-form' && (
+                                <RequestFormPage
+                                    serviceCode={selectedServiceCode}
+                                    onBack={() => setCurrentTab('dashboard')}
+                                    onSuccess={() => setCurrentTab('tracking')}
+                                />
+                            )}
 
-                        {currentTab === 'tracking' && (
-                            <TrackingPage defaultSelectedId={selectedPermohonanId} />
-                        )}
+                            {currentTab === 'tracking' && (
+                                <TrackingPage defaultSelectedId={selectedPermohonanId} />
+                            )}
 
-                        {currentTab === 'approvals' && (
-                            <ApprovalsPage onOpenTracking={() => setCurrentTab('tracking')} />
-                        )}
+                            {currentTab === 'approvals' && (
+                                <ApprovalsPage onOpenTracking={() => setCurrentTab('tracking')} />
+                            )}
 
-                        {currentTab === 'analytics' && (
-                            <AnalyticsPage />
-                        )}
+                            {currentTab === 'analytics' && (
+                                <AnalyticsPage />
+                            )}
 
-                        {currentTab === 'stock' && (
-                            <StockManagementPage initialTab="suvenir" />
-                        )}
+                            {currentTab === 'stock' && (
+                                <StockManagementPage initialTab="suvenir" />
+                            )}
 
-                        {currentTab === 'inventory-multimedia' && (
-                            <StockManagementPage initialTab="multimedia" />
-                        )}
+                            {currentTab === 'inventory-multimedia' && (
+                                <StockManagementPage initialTab="multimedia" />
+                            )}
 
-                        {currentTab === 'settings' && (
-                            <SettingsPage />
-                        )}
+                            {currentTab === 'settings' && (
+                                <SettingsPage />
+                            )}
 
-                        {currentTab === 'users' && (
-                            <UserManagementPage />
-                        )}
-                    </main>
+                            {currentTab === 'users' && (
+                                <UserManagementPage />
+                            )}
+                        </main>
 
-                    {/* Footer */}
-                    <footer className="border-t border-slate-200/80 bg-white py-4">
-                        <div className="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
-                            <p>© 2026 Sistem Layanan Marketing — Universitas YARSI</p>
-                        </div>
-                    </footer>
+                        {/* Footer */}
+                        <footer className="mt-auto shrink-0 border-t border-slate-200/80 bg-white py-4">
+                            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500">
+                                <p>© 2026 Sistem Layanan Marketing — Universitas YARSI</p>
+                            </div>
+                        </footer>
+                    </div>
                 </div>
             </div>
         </div>
