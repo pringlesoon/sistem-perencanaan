@@ -587,14 +587,15 @@ export default function TrackingPage({ defaultSelectedId }) {
 
     // Filter states
     const isPic = user?.role === 'PIC';
-    const picServiceCode = isPic ? user?.pic_service_code : null;
+    const fallbackPicMap = { ahmad: 'D', nurhaliza: 'P', bagas: 'S', dewi: 'M', rizky: 'L' };
+    const picServiceCode = isPic ? (user?.pic_service_code || fallbackPicMap[user?.username?.toLowerCase()] || null) : null;
     const [serviceFilter, setServiceFilter] = useState(picServiceCode || '');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
 
-    // Active service: for PIC it is strictly locked to user.pic_service_code
-    const activeService = isPic ? (user?.pic_service_code || '') : serviceFilter;
+    // Active service: for PIC it is strictly locked to their service code
+    const activeService = isPic ? (picServiceCode || '') : serviceFilter;
 
     // Detail modal states
     const [selectedDetail, setSelectedDetail] = useState(null);
@@ -658,10 +659,10 @@ export default function TrackingPage({ defaultSelectedId }) {
 
     // Auto-sync PIC service code when user auth loads
     useEffect(() => {
-        if (isPic && user?.pic_service_code && serviceFilter !== user.pic_service_code) {
-            setServiceFilter(user.pic_service_code);
+        if (isPic && picServiceCode && serviceFilter !== picServiceCode) {
+            setServiceFilter(picServiceCode);
         }
-    }, [user, isPic]);
+    }, [user, isPic, picServiceCode]);
 
     useEffect(() => {
         loadRequests();
@@ -843,7 +844,7 @@ export default function TrackingPage({ defaultSelectedId }) {
                         {user?.role === 'User'
                             ? 'Pantau perkembangan dan estimasi Lead Time permohonan yang Anda ajukan.'
                             : isPic
-                                ? `Permohonan masuk ke layanan Anda (${SERVICES.find(s => s.code === picServiceCode)?.name || ''}).`
+                                ? `Permohonan masuk ke layanan Anda (${SERVICES.find(s => s.code === activeService)?.name || `Layanan (${activeService})`}).`
                                 : 'Manajemen antrean permohonan seluruh unit kerja internal.'}
                     </p>
                 </div>

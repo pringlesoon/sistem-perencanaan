@@ -50,6 +50,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'unit_kerja' => $user->unit_kerja,
                     'role' => $user->role,
+                    'pic_service_code' => $user->pic_service_code,
                 ],
             ],
         ]);
@@ -79,6 +80,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'unit_kerja' => $user->unit_kerja,
                     'role' => $user->role,
+                    'pic_service_code' => $user->pic_service_code,
                 ],
             ],
         ]);
