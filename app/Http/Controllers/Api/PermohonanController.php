@@ -56,8 +56,13 @@ class PermohonanController extends Controller
             $query->where('user_id', $user->id);
         } elseif ($user->role === 'PIC') {
             if ($user->pic_service_code) {
-                $query->whereHas('service', function ($q) use ($user) {
-                    $q->where('code', $user->pic_service_code);
+                $picCatMap = ['D' => 'Desain', 'P' => 'Publikasi', 'S' => 'Suvenir', 'M' => 'Multimedia', 'L' => 'Liputan'];
+                $catName = $picCatMap[$user->pic_service_code] ?? null;
+                $query->where(function ($q) use ($user, $catName) {
+                    $q->whereHas('service', fn($sq) => $sq->where('code', $user->pic_service_code));
+                    if ($catName) {
+                        $q->orWhere('kategori', 'like', "%{$catName}%");
+                    }
                 });
             } else {
                 $query->whereRaw('1 = 0');
@@ -377,11 +382,18 @@ class PermohonanController extends Controller
         }
 
         // PIC hanya boleh melihat permohonan dari layanannya sendiri
-        if ($user->role === 'PIC' && $permohonan->service?->code !== $user->pic_service_code) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Akses ditolak. PIC hanya dapat mengakses permohonan dari layanan miliknya.',
-            ], 403);
+        if ($user->role === 'PIC') {
+            $picCatMap = ['D' => 'Desain', 'P' => 'Publikasi', 'S' => 'Suvenir', 'M' => 'Multimedia', 'L' => 'Liputan'];
+            $catName = $picCatMap[$user->pic_service_code] ?? null;
+            $matchesService = ($permohonan->service?->code === $user->pic_service_code);
+            $matchesCat = ($catName && str_contains($permohonan->kategori ?? '', $catName));
+
+            if (!$matchesService && !$matchesCat) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Akses ditolak. PIC hanya dapat mengakses permohonan dari layanan miliknya.',
+                ], 403);
+            }
         }
 
         $permohonan->calculated_lead_time = $permohonan->calculated_lead_time;
@@ -409,8 +421,12 @@ class PermohonanController extends Controller
         $isAuthorized = false;
         if (in_array($user->role, ['Admin', 'SuperAdmin'])) {
             $isAuthorized = true;
-        } elseif ($user->role === 'PIC' && $permohonan->service?->code === $user->pic_service_code) {
-            $isAuthorized = true;
+        } elseif ($user->role === 'PIC') {
+            $picCatMap = ['D' => 'Desain', 'P' => 'Publikasi', 'S' => 'Suvenir', 'M' => 'Multimedia', 'L' => 'Liputan'];
+            $catName = $picCatMap[$user->pic_service_code] ?? null;
+            if ($permohonan->service?->code === $user->pic_service_code || ($catName && str_contains($permohonan->kategori ?? '', $catName))) {
+                $isAuthorized = true;
+            }
         }
 
         if (!$isAuthorized) {

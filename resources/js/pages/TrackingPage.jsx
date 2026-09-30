@@ -359,12 +359,11 @@ function RequestFormDetail({ detail }) {
                                 </div>
                                 <div className="text-right">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase block">Status Otorisasi</span>
-                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                                        detail.suvenir_detail.status_approval === 'Disetujui' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                        detail.suvenir_detail.status_approval === 'Disetujui Sebagian' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                        detail.suvenir_detail.status_approval === 'Ditolak' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                        'bg-purple-50 text-purple-700 border-purple-200'
-                                    }`}>
+                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${detail.suvenir_detail.status_approval === 'Disetujui' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                            detail.suvenir_detail.status_approval === 'Disetujui Sebagian' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                detail.suvenir_detail.status_approval === 'Ditolak' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                                    'bg-purple-50 text-purple-700 border-purple-200'
+                                        }`}>
                                         {detail.suvenir_detail.status_approval}
                                     </span>
                                 </div>
@@ -587,12 +586,15 @@ export default function TrackingPage({ defaultSelectedId }) {
     const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'table'
 
     // Filter states
-    // PIC: default to their service; others: default empty (Pilih Layanan)
-    const picServiceCode = user?.role === 'PIC' ? user?.pic_service_code : null;
+    const isPic = user?.role === 'PIC';
+    const picServiceCode = isPic ? user?.pic_service_code : null;
     const [serviceFilter, setServiceFilter] = useState(picServiceCode || '');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
+
+    // Active service: for PIC it is strictly locked to user.pic_service_code
+    const activeService = isPic ? (user?.pic_service_code || '') : serviceFilter;
 
     // Detail modal states
     const [selectedDetail, setSelectedDetail] = useState(null);
@@ -615,23 +617,23 @@ export default function TrackingPage({ defaultSelectedId }) {
     const scrollAnimRef = useRef(null);
 
     const isAdmin = ['Admin', 'SuperAdmin'].includes(user?.role);
-    const isPic = user?.role === 'PIC';
     const canDrag = isAdmin || isPic;
     const canUpdateStatus = isAdmin || isPic;
 
     // Get service-specific kanban columns
-    const activeKanbanColumns = serviceFilter
-        ? (SERVICE_KANBAN[serviceFilter] || DEFAULT_KANBAN_COLUMNS)
+    const activeKanbanColumns = activeService
+        ? (SERVICE_KANBAN[activeService] || DEFAULT_KANBAN_COLUMNS)
         : DEFAULT_KANBAN_COLUMNS;
 
     // Get available status options for update modal based on service
-    const getStatusOptions = () => {
-        const flow = SERVICE_STATUS_FLOWS[serviceFilter] || ['Diajukan', 'Diproses', 'Direvisi', 'Selesai', 'Ditolak'];
+    const getStatusOptions = (customServiceCode = null) => {
+        const code = customServiceCode || selectedDetail?.service?.code || activeService;
+        const flow = SERVICE_STATUS_FLOWS[code] || ['Diajukan', 'Diproses', 'Direvisi', 'Selesai', 'Ditolak'];
         return flow.filter(s => s !== 'Diajukan');
     };
 
     const loadRequests = async () => {
-        if (!serviceFilter && user?.role !== 'User') {
+        if (!activeService && user?.role !== 'User') {
             setRequests([]);
             setLoading(false);
             return;
@@ -640,7 +642,7 @@ export default function TrackingPage({ defaultSelectedId }) {
         try {
             const params = new URLSearchParams();
             params.append('per_page', '100');
-            if (serviceFilter) params.append('service_code', serviceFilter);
+            if (activeService) params.append('service_code', activeService);
             if (searchTerm) params.append('search', searchTerm);
 
             const res = await api.get(`/requests?${params.toString()}`);
@@ -654,9 +656,16 @@ export default function TrackingPage({ defaultSelectedId }) {
         }
     };
 
+    // Auto-sync PIC service code when user auth loads
+    useEffect(() => {
+        if (isPic && user?.pic_service_code && serviceFilter !== user.pic_service_code) {
+            setServiceFilter(user.pic_service_code);
+        }
+    }, [user, isPic]);
+
     useEffect(() => {
         loadRequests();
-    }, [serviceFilter, searchTerm]);
+    }, [activeService, searchTerm, user]);
 
     const openDetail = async (id) => {
         setLoadingDetail(true);
@@ -666,7 +675,7 @@ export default function TrackingPage({ defaultSelectedId }) {
             if (res.data?.status === 'success') {
                 setSelectedDetail(res.data.data);
                 // Pre-select next logical status
-                const flow = SERVICE_STATUS_FLOWS[res.data.data.service?.code] || getStatusOptions();
+                const flow = SERVICE_STATUS_FLOWS[res.data.data.service?.code] || getStatusOptions(res.data.data.service?.code);
                 const currentIdx = flow.indexOf(res.data.data.status);
                 const nextStatus = flow[currentIdx + 1] || flow[flow.length - 2] || 'Diproses';
                 setTargetStatus(nextStatus);
@@ -676,6 +685,20 @@ export default function TrackingPage({ defaultSelectedId }) {
         } finally {
             setLoadingDetail(false);
         }
+    };
+
+    // Shortcut to open status update modal directly from table or kanban
+    const openUpdateModalForReq = (req) => {
+        setStatusError(null);
+        setStatusNote('');
+        setRevisionFile(null);
+        setSelectedDetail(req);
+        const reqServiceCode = req.service?.code || activeService;
+        const flow = SERVICE_STATUS_FLOWS[reqServiceCode] || ['Diajukan', 'Diproses', 'Direvisi', 'Selesai', 'Ditolak'];
+        const currentIdx = flow.indexOf(req.status);
+        const nextStatus = flow[currentIdx + 1] || flow[flow.length - 2] || 'Diproses';
+        setTargetStatus(nextStatus);
+        setUpdateModalOpen(true);
     };
 
     useEffect(() => {
@@ -709,7 +732,8 @@ export default function TrackingPage({ defaultSelectedId }) {
             });
 
             if (res.data?.status === 'success') {
-                setSelectedDetail(res.data.data);
+                setRequests(prev => prev.map(r => r.id === selectedDetail.id ? { ...r, status: targetStatus } : r));
+                setSelectedDetail(prev => prev ? { ...prev, status: targetStatus } : null);
                 setUpdateModalOpen(false);
                 setStatusNote('');
                 setRevisionFile(null);
@@ -819,8 +843,8 @@ export default function TrackingPage({ defaultSelectedId }) {
                         {user?.role === 'User'
                             ? 'Pantau perkembangan dan estimasi Lead Time permohonan yang Anda ajukan.'
                             : isPic
-                            ? `Permohonan masuk ke layanan Anda (${SERVICES.find(s => s.code === picServiceCode)?.name || ''}).`
-                            : 'Manajemen antrean permohonan seluruh unit kerja internal.'}
+                                ? `Permohonan masuk ke layanan Anda (${SERVICES.find(s => s.code === picServiceCode)?.name || ''}).`
+                                : 'Manajemen antrean permohonan seluruh unit kerja internal.'}
                     </p>
                 </div>
 
@@ -870,8 +894,13 @@ export default function TrackingPage({ defaultSelectedId }) {
                     />
                 </div>
 
-                {/* Service Filter — hidden for PIC (auto-filtered) */}
-                {!isPic && (
+                {/* Service Filter — locked badge for PIC, select for Admin/User */}
+                {isPic ? (
+                    <div className="flex items-center space-x-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-xl text-xs font-bold text-green-800 shadow-2xs">
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <span>PIC: {SERVICES.find(s => s.code === (user?.pic_service_code || activeService))?.name || `Layanan (${activeService})`}</span>
+                    </div>
+                ) : (
                     <select
                         value={serviceFilter}
                         onChange={(e) => setServiceFilter(e.target.value)}
@@ -905,7 +934,7 @@ export default function TrackingPage({ defaultSelectedId }) {
             </div>
 
             {/* Empty state for unselected service in Kanban */}
-            {viewMode === 'kanban' && !serviceFilter && (
+            {viewMode === 'kanban' && !activeService && (
                 <div className="flex-1 flex items-center justify-center min-h-[380px]">
                     <div className="text-center space-y-3 py-16 px-6 bg-white rounded-3xl border border-slate-200 shadow-xs max-w-md mx-auto">
                         <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
@@ -920,7 +949,7 @@ export default function TrackingPage({ defaultSelectedId }) {
             )}
 
             {/* Kanban / Table View */}
-            {(viewMode === 'table' || serviceFilter) && (
+            {(viewMode === 'table' || activeService) && (
                 viewMode === 'table' ? (
                     /* TABLE VIEW */
                     <div className="flex-1 overflow-auto">
@@ -974,13 +1003,27 @@ export default function TrackingPage({ defaultSelectedId }) {
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-right">
-                                                <button
-                                                    onClick={() => openDetail(req.id)}
-                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                                                    title="Lihat detail permohonan"
-                                                >
-                                                    <Eye className="w-3.5 h-3.5" />
-                                                </button>
+                                                <div className="flex items-center justify-end space-x-1.5">
+                                                    {canUpdateStatus && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                openUpdateModalForReq(req);
+                                                            }}
+                                                            className="px-2.5 py-1 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+                                                            title="Ubah status permohonan ini"
+                                                        >
+                                                            Ubah Status
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => openDetail(req.id)}
+                                                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                                        title="Lihat detail permohonan"
+                                                    >
+                                                        <Eye className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -1019,11 +1062,10 @@ export default function TrackingPage({ defaultSelectedId }) {
                                             onDragOver={canDrag ? (e) => handleDragOver(e, column.key) : undefined}
                                             onDragLeave={canDrag ? handleDragLeave : undefined}
                                             onDrop={canDrag ? (e) => handleDrop(e, column.key) : undefined}
-                                            className={`w-[280px] flex-shrink-0 flex flex-col bg-slate-50/80 rounded-2xl border transition-all duration-150 ${
-                                                isDropTarget
+                                            className={`w-[280px] flex-shrink-0 flex flex-col bg-slate-50/80 rounded-2xl border transition-all duration-150 ${isDropTarget
                                                     ? `${column.borderColor} border-2 ring-2 ring-offset-1 ring-${column.color}-400 shadow-lg`
                                                     : 'border-slate-200'
-                                            }`}
+                                                }`}
                                         >
                                             {/* Column Header */}
                                             <div className={`${column.headerBg} px-4 py-3 rounded-t-2xl border-b ${column.borderColor} flex items-center justify-between`}>
@@ -1202,9 +1244,9 @@ export default function TrackingPage({ defaultSelectedId }) {
                                     onChange={(e) => setStatusNote(e.target.value)}
                                     placeholder={
                                         targetStatus === 'Ditolak' ? 'Sebutkan alasan penolakan agar pemohon mengetahui penyebabnya...' :
-                                        targetStatus === 'Direvisi' ? 'Sebutkan dokumen atau perubahan yang perlu dilengkapi pemohon...' :
-                                        isPic ? 'Berikan catatan proses wajib untuk pemohon...' :
-                                        'Berikan catatan proses...'
+                                            targetStatus === 'Direvisi' ? 'Sebutkan dokumen atau perubahan yang perlu dilengkapi pemohon...' :
+                                                isPic ? 'Berikan catatan proses wajib untuk pemohon...' :
+                                                    'Berikan catatan proses...'
                                     }
                                     className="w-full text-xs p-3 border border-slate-300 rounded-xl bg-white"
                                     required={isPic || ['Ditolak', 'Direvisi'].includes(targetStatus)}
