@@ -30,7 +30,7 @@ return new class extends Migration
             $table->integer('qty_diminta');
             $table->integer('qty_disetujui_otomatis')->default(0);
             $table->integer('qty_perlu_approval')->default(0);
-            $table->enum('status_approval', ['Menunggu Approval', 'Disetujui', 'Ditolak'])->default('Menunggu Approval');
+            $table->string('status_approval', 50)->default('Menunggu Approval');
             $table->text('catatan_approver')->nullable();
             $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('approved_at')->nullable();
