@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\InventoryItem;
+use App\Models\InventoryLog;
 use App\Models\Notification;
 use App\Models\Permohonan;
 use App\Models\RequestSuvenirDetail;
@@ -49,28 +51,33 @@ class SuvenirApprovalService
     }
 
     /**
-     * Penanganan Keputusan Approver (Setuju / Tolak untuk sisa kuota)
+     * Penanganan Keputusan Approver / Super Admin / PIC (Setuju Penuh / Setuju Sebagian / Tolak)
      */
     public function handleApproverDecision(
         Permohonan $permohonan,
         User $approver,
-        string $decision, // 'approve' atau 'reject'
-        ?string $catatan = null
+        string $decision, // 'approve', 'partial', atau 'reject'
+        ?string $catatan = null,
+        ?int $qtyDisetujui = null
     ): Permohonan {
-        return DB::transaction(function () use ($permohonan, $approver, $decision, $catatan) {
+        return DB::transaction(function () use ($permohonan, $approver, $decision, $catatan, $qtyDisetujui) {
             $detail = $permohonan->suvenirDetail;
             if (!$detail) {
                 throw new Exception('Detail suvenir tidak ditemukan.');
             }
 
             $oldStatus = $permohonan->status;
+            $approverRoleName = $approver->role === 'PIC' ? 'PIC Alat Promosi' : 'Super Admin';
+            $approvedCount = 0;
 
             if ($decision === 'approve') {
                 $detail->status_approval = 'Disetujui';
                 $detail->approved_by = $approver->id;
                 $detail->approved_at = Carbon::now();
-                $detail->catatan_approver = $catatan ?? 'Persetujuan kuota tambahan disetujui penuh oleh Kepala Divisi.';
+                $detail->catatan_approver = $catatan ?? "Persetujuan kuota suvenir disetujui penuh oleh {$approverRoleName}.";
                 $detail->save();
+
+                $approvedCount = $detail->qty_diminta;
 
                 $newStatus = 'Diproses';
                 $permohonan->status = $newStatus;
@@ -82,7 +89,7 @@ class SuvenirApprovalService
                     'user_id' => $approver->id,
                     'status_sebelumnya' => $oldStatus,
                     'status_baru' => $newStatus,
-                    'catatan' => "Sisa kuota {$detail->qty_perlu_approval} unit disetujui oleh Approver (" . $approver->name . "). Total disetujui: {$detail->qty_diminta} unit. " . ($catatan ? "Catatan: {$catatan}" : ""),
+                    'catatan' => "Sisa kuota {$detail->qty_perlu_approval} unit disetujui oleh {$approverRoleName} ({$approver->name}). Total disetujui: {$detail->qty_diminta} unit. " . ($catatan ? "Catatan: {$catatan}" : ""),
                 ]);
 
                 // Notifikasi ke Pemohon
@@ -90,17 +97,48 @@ class SuvenirApprovalService
                     'user_id' => $permohonan->user_id,
                     'permohonan_id' => $permohonan->id,
                     'title' => 'Permohonan Suvenir Disetujui: ' . $permohonan->nomor_tiket,
-                    'message' => "Kuota tambahan suvenir Anda telah disetujui oleh Kepala Divisi. Permohonan kini berstatus Diproses.",
+                    'message' => "Kuota penuh ({$detail->qty_diminta} unit) disetujui oleh {$approverRoleName}. Permohonan kini berstatus Diproses.",
                     'type' => 'success',
+                ]);
+            } elseif ($decision === 'partial') {
+                $qty = $qtyDisetujui ?? $detail->qty_disetujui_otomatis;
+                $detail->status_approval = 'Disetujui Sebagian';
+                $detail->approved_by = $approver->id;
+                $detail->approved_at = Carbon::now();
+                $detail->qty_disetujui_otomatis = $qty;
+                $detail->catatan_approver = $catatan ?? "Disetujui sebagian sebanyak {$qty} dari {$detail->qty_diminta} unit oleh {$approverRoleName}.";
+                $detail->save();
+
+                $approvedCount = $qty;
+
+                $newStatus = 'Diproses';
+                $permohonan->status = $newStatus;
+                $permohonan->save();
+
+                StatusHistory::create([
+                    'permohonan_id' => $permohonan->id,
+                    'user_id' => $approver->id,
+                    'status_sebelumnya' => $oldStatus,
+                    'status_baru' => $newStatus,
+                    'catatan' => "Disetujui sebagian ({$qty} unit dari total {$detail->qty_diminta} unit) oleh {$approverRoleName} ({$approver->name}). " . ($catatan ? "Catatan: {$catatan}" : ""),
+                ]);
+
+                Notification::create([
+                    'user_id' => $permohonan->user_id,
+                    'permohonan_id' => $permohonan->id,
+                    'title' => 'Persetujuan Sebagian Suvenir: ' . $permohonan->nomor_tiket,
+                    'message' => "Permohonan suvenir Anda disetujui sebagian sebanyak {$qty} unit oleh {$approverRoleName}. Permohonan kini berstatus Diproses.",
+                    'type' => 'warning',
                 ]);
             } else {
                 $detail->status_approval = 'Ditolak';
                 $detail->approved_by = $approver->id;
                 $detail->approved_at = Carbon::now();
-                $detail->catatan_approver = $catatan ?? 'Permintaan tambahan kuota tidak disetujui. Hanya kuota otomatis yang dapat diproses.';
+                $detail->catatan_approver = $catatan ?? 'Permintaan tambahan kuota tidak disetujui.';
                 $detail->save();
 
-                // Status tetap Diproses untuk kuota otomatis atau Ditolak sesuai catatan
+                $approvedCount = $detail->qty_disetujui_otomatis;
+
                 $newStatus = ($detail->qty_disetujui_otomatis > 0) ? 'Diproses' : 'Ditolak';
                 $permohonan->status = $newStatus;
                 $permohonan->save();
@@ -110,16 +148,38 @@ class SuvenirApprovalService
                     'user_id' => $approver->id,
                     'status_sebelumnya' => $oldStatus,
                     'status_baru' => $newStatus,
-                    'catatan' => "Tambahan kuota ({$detail->qty_perlu_approval} unit) ditolak oleh Approver (" . $approver->name . "). Hanya kuota otomatis {$detail->qty_disetujui_otomatis} unit yang diberikan. " . ($catatan ? "Alasan: {$catatan}" : ""),
+                    'catatan' => "Tambahan kuota ({$detail->qty_perlu_approval} unit) ditolak oleh {$approverRoleName} ({$approver->name}). " . ($detail->qty_disetujui_otomatis > 0 ? "Hanya kuota otomatis {$detail->qty_disetujui_otomatis} unit yang diberikan." : "Permohonan ditolak penuh.") . ($catatan ? " Alasan: {$catatan}" : ""),
                 ]);
 
                 Notification::create([
                     'user_id' => $permohonan->user_id,
                     'permohonan_id' => $permohonan->id,
                     'title' => 'Pembaruan Kuota Suvenir: ' . $permohonan->nomor_tiket,
-                    'message' => "Tambahan kuota suvenir tidak disetujui oleh Kepala Divisi. Hanya {$detail->qty_disetujui_otomatis} unit otomatis yang dapat diproses.",
+                    'message' => "Tambahan kuota suvenir tidak disetujui oleh {$approverRoleName}." . ($detail->qty_disetujui_otomatis > 0 ? " Diproses sebanyak {$detail->qty_disetujui_otomatis} unit otomatis." : ""),
                     'type' => 'warning',
                 ]);
+            }
+
+            // Catat log inventaris dan kurangi stok otomatis jika item ditemukan di inventaris
+            if ($approvedCount > 0 && !empty($detail->nama_item)) {
+                $inventoryItem = InventoryItem::where('kategori', 'suvenir')
+                    ->where('nama_item', $detail->nama_item)
+                    ->first();
+
+                if ($inventoryItem) {
+                    $deduct = min($inventoryItem->stok_tersedia, $approvedCount);
+                    $inventoryItem->stok_tersedia -= $deduct;
+                    $inventoryItem->save();
+
+                    InventoryLog::create([
+                        'inventory_item_id' => $inventoryItem->id,
+                        'tipe' => 'Keluar',
+                        'jumlah' => $deduct,
+                        'catatan' => "Pengurangan otomatis alokasi suvenir untuk tiket #{$permohonan->nomor_tiket} ({$detail->nama_item})",
+                        'user_id' => $approver->id,
+                        'permohonan_id' => $permohonan->id,
+                    ]);
+                }
             }
 
             return $permohonan->fresh(['user', 'service', 'suvenirDetail', 'statusHistories']);

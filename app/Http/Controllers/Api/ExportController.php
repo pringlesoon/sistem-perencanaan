@@ -17,8 +17,8 @@ class ExportController extends Controller
     public function csv(Request $request): StreamedResponse
     {
         $user = Auth::user();
-        if (!$user || (!$user->isAdmin() && !$user->isApprover())) {
-            abort(403, 'Akses ekspor hanya untuk Admin dan Approver.');
+        if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin())) {
+            abort(403, 'Akses ekspor hanya untuk Admin dan Super Admin.');
         }
 
         $query = $this->buildFilteredQuery($request);
@@ -92,8 +92,8 @@ class ExportController extends Controller
     public function excel(Request $request): StreamedResponse
     {
         $user = Auth::user();
-        if (!$user || (!$user->isAdmin() && !$user->isApprover())) {
-            abort(403, 'Akses ekspor hanya untuk Admin dan Approver.');
+        if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin())) {
+            abort(403, 'Akses ekspor hanya untuk Admin dan Super Admin.');
         }
 
         $query = $this->buildFilteredQuery($request);

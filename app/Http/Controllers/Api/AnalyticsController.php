@@ -19,10 +19,10 @@ class AnalyticsController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = Auth::user();
-        if (!$user || (!$user->isAdmin() && !$user->isApprover())) {
+        if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin())) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Akses ditolak. Dasbor Analitik hanya dapat diakses oleh Admin dan Approver.',
+                'message' => 'Akses ditolak. Dasbor Analitik hanya dapat diakses oleh Admin dan Super Admin.',
             ], 403);
         }
 

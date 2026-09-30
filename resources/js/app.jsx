@@ -10,6 +10,8 @@ import TrackingPage from './pages/TrackingPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
+import UserManagementPage from './pages/UserManagementPage';
+import StockManagementPage from './pages/StockManagementPage';
 
 function AppContent() {
     const { user, loading } = useAuth();
@@ -25,6 +27,13 @@ function AppContent() {
         setCurrentTabState(tab);
     };
 
+    // GUEST MODE PROTECTIONS: redirect to login if attempting to access protected tabs
+    React.useEffect(() => {
+        if (!loading && !user && currentTab !== 'dashboard' && currentTab !== 'login') {
+            setCurrentTab('login');
+        }
+    }, [user, currentTab, loading]);
+
     if (loading) {
         return (
             <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -36,8 +45,8 @@ function AppContent() {
         );
     }
 
-    if (!user) {
-        return <LoginPage />;
+    if (!user && currentTab === 'login') {
+        return <LoginPage onBackToGuest={() => setCurrentTab('dashboard')} />;
     }
 
     const handleSelectService = (code) => {
@@ -58,9 +67,9 @@ function AppContent() {
                 setMobileOpen={setMobileOpen}
             />
 
-            {/* Main Content Area — fixed height column, TopBar doesn't scroll */}
+            {/* Main Content Area */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
-                {/* Top Bar — fixed, won't scroll with content */}
+                {/* Top Bar */}
                 <TopBar
                     currentTab={currentTab}
                     setCurrentTab={(tab) => {
@@ -100,8 +109,20 @@ function AppContent() {
                             <AnalyticsPage />
                         )}
 
+                        {currentTab === 'stock' && (
+                            <StockManagementPage initialTab="suvenir" />
+                        )}
+
+                        {currentTab === 'inventory-multimedia' && (
+                            <StockManagementPage initialTab="multimedia" />
+                        )}
+
                         {currentTab === 'settings' && (
                             <SettingsPage />
+                        )}
+
+                        {currentTab === 'users' && (
+                            <UserManagementPage />
                         )}
                     </main>
 

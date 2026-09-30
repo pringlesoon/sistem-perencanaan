@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, User, Sparkles, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, User, Sparkles, ArrowRight, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react';
 
-export default function LoginPage() {
-    const { login, quickSwitch } = useAuth();
+export default function LoginPage({ onBackToGuest }) {
+    const { login } = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -16,19 +16,7 @@ export default function LoginPage() {
         try {
             await login(username, password);
         } catch (err) {
-            setError(err.message || 'Login gagal. Periksa username dan password LDAP Anda.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleQuickLogin = async (usr) => {
-        setError(null);
-        setLoading(true);
-        try {
-            await quickSwitch(usr);
-        } catch (err) {
-            setError(err.message);
+            setError(err.message || 'Login gagal. Periksa username dan password Anda.');
         } finally {
             setLoading(false);
         }
@@ -41,6 +29,17 @@ export default function LoginPage() {
                 <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
                 <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-sky-500/20 rounded-full blur-3xl pointer-events-none" />
 
+                {/* Back to Guest button */}
+                {onBackToGuest && (
+                    <button
+                        onClick={onBackToGuest}
+                        className="flex items-center space-x-1.5 text-xs text-slate-500 hover:text-slate-700 mb-5 transition-colors"
+                    >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Kembali ke Beranda</span>
+                    </button>
+                )}
+
                 {/* Header */}
                 <div className="text-center mb-8">
                     <img
@@ -52,9 +51,8 @@ export default function LoginPage() {
                     <p className="text-xs font-semibold uppercase tracking-wider text-green-600 mt-0.5">
                         Universitas YARSI
                     </p>
-
                     <p className="text-xs text-slate-500 mt-2">
-                        Silakan masuk dengan akun direktori internal (LDAP / SSO).
+                        Silakan masuk dengan akun direktori internal.
                     </p>
                 </div>
 
@@ -69,9 +67,7 @@ export default function LoginPage() {
                 {/* Form Login */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                            Username LDAP
-                        </label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Username</label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                                 <User className="w-4 h-4" />
@@ -80,7 +76,7 @@ export default function LoginPage() {
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                placeholder="mis. andi, sari, budi"
+                                placeholder="mis. andi, superadmin, ahmad"
                                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                 required
                             />
@@ -88,9 +84,7 @@ export default function LoginPage() {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                            Password LDAP
-                        </label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Password</label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                                 <Lock className="w-4 h-4" />
@@ -111,54 +105,53 @@ export default function LoginPage() {
                         disabled={loading}
                         className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center space-x-2 disabled:opacity-60 cursor-pointer"
                     >
-                        <span>{loading ? 'Memvalidasi LDAP...' : 'Masuk via LDAP SSO'}</span>
+                        <span>{loading ? 'Memvalidasi...' : 'Login'}</span>
                         <ArrowRight className="w-4 h-4" />
                     </button>
                 </form>
 
-                {/* Demo Quick Persona Selectors */}
+                {/* Info: Demo accounts */}
                 <div className="mt-8 pt-6 border-t border-slate-100">
                     <div className="flex items-center justify-center space-x-1.5 text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-3">
                         <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Akses Uji Coba Cepat (PRD Demo)</span>
+                        <span>Akun Demo (Password: password)</span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <button
-                            type="button"
-                            onClick={() => handleQuickLogin('andi')}
-                            className="p-2.5 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-200 border border-slate-200 rounded-xl text-center transition-all group"
-                        >
-                            <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-700">Andi</p>
-                            <p className="text-[10px] text-slate-500">Pemohon</p>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleQuickLogin('sari')}
-                            className="p-2.5 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-center transition-all group"
-                        >
-                            <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-700">Sari</p>
-                            <p className="text-[10px] text-slate-500">Admin</p>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleQuickLogin('budi')}
-                            className="p-2.5 bg-slate-50 hover:bg-purple-50 hover:border-purple-200 border border-slate-200 rounded-xl text-center transition-all group"
-                        >
-                            <p className="text-xs font-bold text-slate-800 group-hover:text-purple-700">Pak Budi</p>
-                            <p className="text-[10px] text-slate-500">Approver</p>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleQuickLogin('dina')}
-                            className="p-2.5 bg-slate-50 hover:bg-cyan-50 hover:border-cyan-200 border border-slate-200 rounded-xl text-center transition-all group"
-                        >
-                            <p className="text-xs font-bold text-slate-800 group-hover:text-cyan-700">Dina</p>
-                            <p className="text-[10px] text-slate-500">Verificator</p>
-                        </button>
+                    <div className="space-y-1.5 text-[10px] text-slate-500">
+                        <div className="grid grid-cols-2 gap-1.5">
+                            <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                <p className="font-bold text-slate-700">andi</p>
+                                <p>Pemohon (User)</p>
+                            </div>
+                            <div className="bg-violet-50 p-2 rounded-lg border border-violet-100">
+                                <p className="font-bold text-violet-700">superadmin</p>
+                                <p>Super Admin</p>
+                            </div>
+                            <div className="bg-indigo-50 p-2 rounded-lg border border-indigo-100">
+                                <p className="font-bold text-indigo-700">ahmad</p>
+                                <p>PIC Desain</p>
+                            </div>
+                            <div className="bg-sky-50 p-2 rounded-lg border border-sky-100">
+                                <p className="font-bold text-sky-700">nurhaliza</p>
+                                <p>PIC Publikasi</p>
+                            </div>
+                            <div className="bg-amber-50 p-2 rounded-lg border border-amber-100">
+                                <p className="font-bold text-amber-700">bagas</p>
+                                <p>PIC Alat Promosi</p>
+                            </div>
+                            <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                                <p className="font-bold text-emerald-700">dewi</p>
+                                <p>PIC Multimedia</p>
+                            </div>
+                            <div className="bg-rose-50 p-2 rounded-lg border border-rose-100">
+                                <p className="font-bold text-rose-700">rizky</p>
+                                <p>PIC Liputan</p>
+                            </div>
+                            <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                <p className="font-bold text-slate-600">fajar, maya, dll</p>
+                                <p>User Biasa</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

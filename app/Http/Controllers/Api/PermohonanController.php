@@ -49,9 +49,19 @@ class PermohonanController extends Controller
             ->orderBy('created_at', 'desc');
 
         // FR-TRK-05: Isolasi Hak Akses
-        // User biasa hanya melihat permohonan miliknya sendiri. Admin & Approver melihat seluruh permohonan.
-        if ($user->isUser()) {
+        // User biasa hanya melihat permohonan miliknya sendiri.
+        // PIC hanya melihat permohonan dari layanan mereka.
+        // Admin, SuperAdmin melihat seluruh permohonan.
+        if ($user->role === 'User') {
             $query->where('user_id', $user->id);
+        } elseif ($user->role === 'PIC') {
+            if ($user->pic_service_code) {
+                $query->whereHas('service', function ($q) use ($user) {
+                    $q->where('code', $user->pic_service_code);
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
 
         // Filter: Status
@@ -125,45 +135,58 @@ class PermohonanController extends Controller
 
         $service = Service::where('code', $request->service_code)->firstOrFail();
 
+        // Parse form_data JSON jika dikirim sebagai string
+        $formData = $request->form_data;
+        if (is_string($formData)) {
+            $formData = json_decode($formData, true) ?? [];
+        } elseif (!is_array($formData)) {
+            $formData = [];
+        }
+
         // 1. Validasi Khusus Multimedia [M]
         if ($request->service_code === 'M') {
-            $request->validate([
-                'tanggal_pelaksanaan' => 'required|date',
-                'jam_mulai' => 'required|date_format:H:i',
-                'jam_selesai' => 'required|date_format:H:i',
-                'lokasi_alat' => 'nullable|string|max:255',
-            ]);
+            $jamMulai = $request->jam_mulai ?? ($formData['jam_mulai'] ?? null);
+            $jamSelesai = $request->jam_selesai ?? ($formData['jam_selesai'] ?? null);
+            $tglPelaksanaan = $request->tanggal_pelaksanaan ?? ($formData['tanggal_produksi'] ?? $formData['tanggal_kegiatan'] ?? null);
 
-            // Cek Durasi Maksimal (FR-MM-04)
-            $durationCheck = $this->multimediaService->validateDuration(
-                $request->jam_mulai,
-                $request->jam_selesai
-            );
-            if (!$durationCheck['valid']) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => $durationCheck['message'],
-                ], 422);
+            if ($jamMulai && $jamSelesai && $tglPelaksanaan) {
+                // Cek Durasi Maksimal (FR-MM-04)
+                $durationCheck = $this->multimediaService->validateDuration($jamMulai, $jamSelesai);
+                if (!$durationCheck['valid']) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => $durationCheck['message'],
+                    ], 422);
+                }
             }
         }
 
         // 2. Validasi Khusus Suvenir [S]
         if ($request->service_code === 'S') {
-            $request->validate([
-                'nama_item' => 'required|string|max:255',
-                'qty_diminta' => 'required|integer|min:1',
-            ]);
+            $hasDirectItem = $request->filled('nama_item') && $request->filled('qty_diminta');
+            $hasMultiItems = !empty($formData['souvenir_items']) && is_array($formData['souvenir_items']);
+
+            if (!$hasDirectItem && !$hasMultiItems) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Mohon pilih minimal satu jenis suvenir beserta jumlah yang dibutuhkan.',
+                ], 422);
+            }
         }
 
         // Transaksi Database ACID untuk menjamin integritas data (NFR-REL-02, FR-MM-05)
         try {
-            $createdPermohonan = DB::transaction(function () use ($request, $user, $service) {
+            $createdPermohonan = DB::transaction(function () use ($request, $user, $service, $formData) {
                 // Skenario Multimedia: Conflict Checking dengan Lock untuk cegah race condition (FR-MM-05)
-                if ($request->service_code === 'M') {
+                $tglPelaksanaan = $request->tanggal_pelaksanaan ?? ($formData['tanggal_produksi'] ?? $formData['tanggal_kegiatan'] ?? null);
+                $jamMulai = $request->jam_mulai ?? ($formData['jam_mulai'] ?? null);
+                $jamSelesai = $request->jam_selesai ?? ($formData['jam_selesai'] ?? null);
+
+                if ($request->service_code === 'M' && $tglPelaksanaan && $jamMulai && $jamSelesai) {
                     $hasConflict = $this->multimediaService->checkConflict(
-                        $request->tanggal_pelaksanaan,
-                        $request->jam_mulai,
-                        $request->jam_selesai,
+                        $tglPelaksanaan,
+                        $jamMulai,
+                        $jamSelesai,
                         null,
                         true // with row locking
                     );
@@ -173,12 +196,30 @@ class PermohonanController extends Controller
                     }
                 }
 
-                // Tentukan Status Awal
+                // Tentukan Status Awal & Perhitungan Kuota Suvenir
                 $initialStatus = 'Diajukan';
                 $suvenirCalc = null;
+                $suvenirSummaryName = $request->nama_item;
+                $suvenirTotalQty = (int) $request->qty_diminta;
 
                 if ($request->service_code === 'S') {
-                    $suvenirCalc = $this->suvenirService->calculateQuota((int) $request->qty_diminta);
+                    if (!empty($formData['souvenir_items']) && is_array($formData['souvenir_items'])) {
+                        $itemsSummary = [];
+                        $calcTotal = 0;
+                        foreach ($formData['souvenir_items'] as $sItem) {
+                            $q = (int) ($sItem['qty'] ?? 0);
+                            if ($q > 0) {
+                                $calcTotal += $q;
+                                $itemsSummary[] = "{$sItem['nama_item']} ({$q})";
+                            }
+                        }
+                        if ($calcTotal > 0) {
+                            $suvenirTotalQty = $calcTotal;
+                            $suvenirSummaryName = implode(', ', $itemsSummary);
+                        }
+                    }
+
+                    $suvenirCalc = $this->suvenirService->calculateQuota($suvenirTotalQty > 0 ? $suvenirTotalQty : 1);
                     $initialStatus = $suvenirCalc['initial_status'];
                 }
 
@@ -195,22 +236,23 @@ class PermohonanController extends Controller
                     'kategori' => $service->name,
                     'judul_permohonan' => $request->judul_permohonan,
                     'deskripsi_kebutuhan' => $request->deskripsi_kebutuhan,
-                    'tanggal_dibutuhkan' => $request->tanggal_dibutuhkan,
+                    'form_data' => $formData,
+                    'tanggal_dibutuhkan' => $request->tanggal_dibutuhkan ?? ($formData['deadline'] ?? $formData['tanggal_publikasi'] ?? null),
                     'status' => $initialStatus,
                 ]);
 
                 // Simpan Detail Multimedia
-                if ($request->service_code === 'M') {
-                    $start = Carbon::parse($request->jam_mulai);
-                    $end = Carbon::parse($request->jam_selesai);
+                if ($request->service_code === 'M' && $tglPelaksanaan && $jamMulai && $jamSelesai) {
+                    $start = Carbon::parse($jamMulai);
+                    $end = Carbon::parse($jamSelesai);
 
                     RequestMultimediaDetail::create([
                         'permohonan_id' => $permohonan->id,
-                        'tanggal_pelaksanaan' => $request->tanggal_pelaksanaan,
+                        'tanggal_pelaksanaan' => $tglPelaksanaan,
                         'jam_mulai' => $start->format('H:i:s'),
                         'jam_selesai' => $end->format('H:i:s'),
                         'durasi_menit' => $start->diffInMinutes($end),
-                        'lokasi_alat' => $request->lokasi_alat ?? 'Studio / Peralatan Terpilih',
+                        'lokasi_alat' => $request->lokasi_alat ?? ($formData['lokasi_produksi'] ?? 'Studio / Peralatan Terpilih'),
                     ]);
                 }
 
@@ -218,16 +260,16 @@ class PermohonanController extends Controller
                 if ($request->service_code === 'S' && $suvenirCalc) {
                     RequestSuvenirDetail::create([
                         'permohonan_id' => $permohonan->id,
-                        'nama_item' => $request->nama_item,
+                        'nama_item' => $suvenirSummaryName ?? 'Suvenir Paket Humas',
                         'qty_diminta' => $suvenirCalc['qty_diminta'],
                         'qty_disetujui_otomatis' => $suvenirCalc['qty_disetujui_otomatis'],
                         'qty_perlu_approval' => $suvenirCalc['qty_perlu_approval'],
                         'status_approval' => ($suvenirCalc['qty_perlu_approval'] > 0) ? 'Menunggu Approval' : 'Disetujui',
                     ]);
 
-                    // Jika ada kuota yang perlu approval, kirim notifikasi ke seluruh Approver (FR-SV-04)
+                    // Jika ada kuota yang perlu approval, kirim notifikasi ke seluruh SuperAdmin (FR-SV-04)
                     if ($suvenirCalc['qty_perlu_approval'] > 0) {
-                        $approvers = User::where('role', 'Approver')->get();
+                        $approvers = User::where('role', 'SuperAdmin')->get();
                         foreach ($approvers as $approver) {
                             Notification::create([
                                 'user_id' => $approver->id,
@@ -334,6 +376,14 @@ class PermohonanController extends Controller
             ], 403);
         }
 
+        // PIC hanya boleh melihat permohonan dari layanannya sendiri
+        if ($user->role === 'PIC' && $permohonan->service?->code !== $user->pic_service_code) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akses ditolak. PIC hanya dapat mengakses permohonan dari layanan miliknya.',
+            ], 403);
+        }
+
         $permohonan->calculated_lead_time = $permohonan->calculated_lead_time;
 
         return response()->json([
@@ -343,34 +393,46 @@ class PermohonanController extends Controller
     }
 
     /**
-     * Ubah Status Permohonan (Khusus Admin / Pelaksana)
+     * Ubah Status Permohonan (Admin / Super Admin / PIC Layanan Bersangkutan)
      * Sesuai PRD FR-TRK-01, FR-TRK-02
      */
     public function updateStatus(Request $request, int $id): JsonResponse
     {
         $user = Auth::user();
-        if (!$user || !$user->isAdmin()) {
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthenticated'], 401);
+        }
+
+        $permohonan = Permohonan::with(['service', 'user'])->findOrFail($id);
+
+        // Otorisasi: Admin & SuperAdmin berhak untuk semua; PIC hanya untuk layanannya sendiri
+        $isAuthorized = false;
+        if (in_array($user->role, ['Admin', 'SuperAdmin'])) {
+            $isAuthorized = true;
+        } elseif ($user->role === 'PIC' && $permohonan->service?->code === $user->pic_service_code) {
+            $isAuthorized = true;
+        }
+
+        if (!$isAuthorized) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Akses ditolak. Hanya Admin/Pelaksana yang berhak mengubah status alur pekerjaan.',
+                'message' => 'Akses ditolak. Anda tidak memiliki hak memperbarui permohonan dari layanan ini.',
             ], 403);
         }
 
+        // Kolom catatan wajib jika PIC yang mengubah status, atau jika status Direvisi / Ditolak
+        $isPic = ($user->role === 'PIC');
+        $requiresNote = $isPic || in_array($request->status, ['Direvisi', 'Ditolak']);
+        $noteRule = $requiresNote ? 'required|string|min:3' : 'nullable|string';
+
         $request->validate([
-            'status' => 'required|string|in:Diajukan,Diproses,Direvisi,Selesai,Ditolak',
-            'catatan' => 'nullable|string',
+            'status' => 'required|string|max:50',
+            'catatan' => $noteRule,
+            'revision_file' => 'nullable|file|max:10240', // max 10MB
         ]);
 
-        $permohonan = Permohonan::findOrFail($id);
         $oldStatus = $permohonan->status;
         $newStatus = $request->status;
-
-        if ($newStatus === 'Direvisi' && empty(trim((string)$request->catatan))) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Catatan revisi wajib diisi jika status diubah menjadi Direvisi.',
-            ], 422);
-        }
 
         DB::transaction(function () use ($permohonan, $user, $oldStatus, $newStatus, $request) {
             $permohonan->status = $newStatus;
@@ -387,13 +449,34 @@ class PermohonanController extends Controller
 
             $permohonan->save();
 
+            // Simpan unggahan lampiran hasil revisi / dokumen pemeriksaan jika ada (terutama PIC Publikasi)
+            if ($request->hasFile('revision_file')) {
+                $file = $request->file('revision_file');
+                $fileName = $file->getClientOriginalName();
+                $filePath = $file->store('attachments', 'public');
+
+                RequestAttachment::create([
+                    'permohonan_id' => $permohonan->id,
+                    'file_name' => '[Hasil Revisi/Pemeriksaan] ' . $fileName,
+                    'file_path' => $filePath,
+                    'file_size' => $file->getSize(),
+                    'mime_type' => $file->getClientMimeType(),
+                ]);
+            }
+
+            $actorTitle = match ($user->role) {
+                'PIC' => 'PIC ' . ($permohonan->service?->name ?? 'Layanan'),
+                'SuperAdmin' => 'Super Admin',
+                default => 'Admin'
+            };
+
             // Append-Only Status History
             StatusHistory::create([
                 'permohonan_id' => $permohonan->id,
                 'user_id' => $user->id,
                 'status_sebelumnya' => $oldStatus,
                 'status_baru' => $newStatus,
-                'catatan' => $request->catatan ?? "Status diperbarui dari {$oldStatus} menjadi {$newStatus} oleh Admin.",
+                'catatan' => $request->catatan ?? "Status diperbarui dari {$oldStatus} menjadi {$newStatus} oleh {$actorTitle} ({$user->name}).",
             ]);
 
             // Kirim Notifikasi in-app ke Pemohon (FR-NOTIF-01)
@@ -416,30 +499,36 @@ class PermohonanController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => "Status permohonan {$permohonan->nomor_tiket} berhasil diubah menjadi {$newStatus}.",
-            'data' => $permohonan->fresh(['user', 'service', 'statusHistories.user', 'multimediaDetail', 'suvenirDetail']),
+            'data' => $permohonan->fresh(['user', 'service', 'statusHistories.user', 'multimediaDetail', 'suvenirDetail', 'attachments']),
         ]);
     }
 
     /**
-     * Keputusan Approver untuk Suvenir yang melebihi batas kuota (Khusus Approver)
-     * Sesuai PRD FR-SV-04, FR-SV-06, AC-12
+     * Keputusan Persetujuan Suvenir (Super Admin / PIC Alat Promosi)
+     * Mendukung Persetujuan Penuh, Persetujuan Sebagian, dan Penolakan
      */
     public function approveSuvenir(Request $request, int $id): JsonResponse
     {
         $user = Auth::user();
-        if (!$user || !$user->isApprover()) {
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthenticated'], 401);
+        }
+
+        $permohonan = Permohonan::where('id', $id)->firstOrFail();
+
+        $canApprove = $user->isSuperAdmin() || ($user->role === 'PIC' && $user->pic_service_code === 'S') || $user->isAdmin();
+        if (!$canApprove) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Akses ditolak. Hanya Approver (Kepala Divisi) yang berhak memproses persetujuan kuota ini.',
+                'message' => 'Akses ditolak. Hanya Super Admin atau PIC Alat Promosi yang berhak memproses persetujuan ini.',
             ], 403);
         }
 
         $request->validate([
-            'decision' => 'required|string|in:approve,reject',
-            'catatan' => 'nullable|string',
+            'decision' => 'required|string|in:approve,partial,reject',
+            'qty_disetujui' => 'nullable|integer|min:1',
+            'catatan' => ($request->decision === 'partial' || $user->role === 'PIC') ? 'required|string|min:3' : 'nullable|string',
         ]);
-
-        $permohonan = Permohonan::where('id', $id)->firstOrFail();
 
         if ($permohonan->kategori !== 'Suvenir' && $permohonan->service?->code !== 'S') {
             return response()->json([
@@ -452,10 +541,15 @@ class PermohonanController extends Controller
             $permohonan,
             $user,
             $request->decision,
-            $request->catatan
+            $request->catatan,
+            $request->qty_disetujui ? (int)$request->qty_disetujui : null
         );
 
-        $actionText = ($request->decision === 'approve') ? 'disetujui' : 'ditolak';
+        $actionText = match ($request->decision) {
+            'approve' => 'disetujui penuh',
+            'partial' => 'disetujui sebagian (' . $request->qty_disetujui . ' unit)',
+            default => 'ditolak'
+        };
 
         return response()->json([
             'status' => 'success',

@@ -5,19 +5,20 @@ const AuthContext = createContext(null);
 
 /**
  * Enriches a plain user object from the API with role-helper methods.
- * The API returns a plain JSON object, so isAdmin/isApprover/isUser
- * must be attached here to avoid "is not a function" crashes in pages.
  */
 const enrichUser = (userData) => {
     if (!userData) return null;
     return {
         ...userData,
         isAdmin: () => userData.role === 'Admin',
-        isApprover: () => userData.role === 'Approver',
+        isSuperAdmin: () => userData.role === 'SuperAdmin',
+        isPic: () => userData.role === 'PIC',
         isUser: () => userData.role === 'User',
-        isVerificator: () => userData.role === 'Verificator',
+        // Convenience: can access admin-level features
+        hasAdminAccess: () => ['Admin', 'SuperAdmin'].includes(userData.role),
     };
 };
+
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
@@ -43,7 +44,7 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = async (username, password) => {
-        // Fetch fresh CSRF cookie before login so Sanctum statefulApi() accepts subsequent requests
+        // Fetch fresh CSRF cookie before login
         await api.get('/sanctum/csrf-cookie', { baseURL: '/' });
         const res = await api.post('/auth/login', { username, password });
         if (res.data?.status === 'success') {

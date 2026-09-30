@@ -22,6 +22,7 @@ class Permohonan extends Model
         'kategori',
         'judul_permohonan',
         'deskripsi_kebutuhan',
+        'form_data',
         'tanggal_dibutuhkan',
         'status',
         'catatan_revisi',
@@ -32,6 +33,7 @@ class Permohonan extends Model
     protected function casts(): array
     {
         return [
+            'form_data' => 'array',
             'tanggal_dibutuhkan' => 'date',
             'selesai_at' => 'datetime',
             'lead_time_minutes' => 'integer',

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -17,6 +18,7 @@ class User extends Authenticatable
         'email',
         'unit_kerja',
         'role',
+        'pic_service_code',
         'password',
         'guid',
         'domain',
@@ -40,14 +42,27 @@ class User extends Authenticatable
         return $this->role === 'Admin';
     }
 
-    public function isApprover(): bool
+    public function isSuperAdmin(): bool
     {
-        return $this->role === 'Approver';
+        return $this->role === 'SuperAdmin';
     }
+
+    public function isPic(): bool
+    {
+        return $this->role === 'PIC';
+    }
+
+
+
 
     public function isUser(): bool
     {
         return $this->role === 'User';
+    }
+
+    public function picService(): BelongsTo
+    {
+        return $this->belongsTo(Service::class, 'pic_service_code', 'code');
     }
 
     public function permohonans(): HasMany

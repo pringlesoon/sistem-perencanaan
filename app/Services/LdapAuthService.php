@@ -72,7 +72,7 @@ class LdapAuthService
     }
 
     /**
-     * Akun Uji Coba Cepat (Andi, Sari, Pak Budi) sesuai Persona PRD Bab 5
+     * Akun Uji Coba Cepat sesuai Persona PRD
      */
     protected function authenticateMock(string $username, string $password): ?User
     {
@@ -83,17 +83,76 @@ class LdapAuthService
                 'unit_kerja' => 'Biro Akademik & Kemahasiswaan',
                 'role' => 'User',
             ],
-            'sari' => [
-                'name' => 'Sari Wulandari',
-                'email' => 'sari.humas@kampus.ac.id',
-                'unit_kerja' => 'Universitas YARSI',
-                'role' => 'Admin',
+            'superadmin' => [
+                'name' => 'Rini Andriani',
+                'email' => 'rini.admin@kampus.ac.id',
+                'unit_kerja' => 'Divisi Marketing YARSI',
+                'role' => 'SuperAdmin',
             ],
-            'budi' => [
-                'name' => 'Dr. Budi Santoso, M.Kom',
-                'email' => 'budi.humas@kampus.ac.id',
-                'unit_kerja' => 'Universitas YARSI',
-                'role' => 'Approver',
+            'ahmad' => [
+                'name' => 'Ahmad Fauzi',
+                'email' => 'ahmad.pic@kampus.ac.id',
+                'unit_kerja' => 'Divisi Marketing YARSI',
+                'role' => 'PIC',
+                'pic_service_code' => 'D',
+            ],
+            'nurhaliza' => [
+                'name' => 'Nurhaliza Putri',
+                'email' => 'nurhaliza.pic@kampus.ac.id',
+                'unit_kerja' => 'Divisi Marketing YARSI',
+                'role' => 'PIC',
+                'pic_service_code' => 'P',
+            ],
+            'bagas' => [
+                'name' => 'Bagas Wicaksono',
+                'email' => 'bagas.pic@kampus.ac.id',
+                'unit_kerja' => 'Divisi Marketing YARSI',
+                'role' => 'PIC',
+                'pic_service_code' => 'S',
+            ],
+            'dewi' => [
+                'name' => 'Dewi Rahayu',
+                'email' => 'dewi.pic@kampus.ac.id',
+                'unit_kerja' => 'Divisi Marketing YARSI',
+                'role' => 'PIC',
+                'pic_service_code' => 'M',
+            ],
+            'rizky' => [
+                'name' => 'Rizky Pratama',
+                'email' => 'rizky.pic@kampus.ac.id',
+                'unit_kerja' => 'Divisi Marketing YARSI',
+                'role' => 'PIC',
+                'pic_service_code' => 'L',
+            ],
+            'fajar' => [
+                'name' => 'Fajar Setiawan',
+                'email' => 'fajar@kampus.ac.id',
+                'unit_kerja' => 'Fakultas Kedokteran',
+                'role' => 'User',
+            ],
+            'maya' => [
+                'name' => 'Maya Anggraini',
+                'email' => 'maya@kampus.ac.id',
+                'unit_kerja' => 'Fakultas Teknologi Informasi',
+                'role' => 'User',
+            ],
+            'hendra' => [
+                'name' => 'Hendra Kurniawan',
+                'email' => 'hendra@kampus.ac.id',
+                'unit_kerja' => 'Fakultas Hukum',
+                'role' => 'User',
+            ],
+            'sinta' => [
+                'name' => 'Sinta Permata',
+                'email' => 'sinta@kampus.ac.id',
+                'unit_kerja' => 'Fakultas Ekonomi & Bisnis',
+                'role' => 'User',
+            ],
+            'yusuf' => [
+                'name' => 'Yusuf Ramadhan',
+                'email' => 'yusuf@kampus.ac.id',
+                'unit_kerja' => 'Biro Keuangan & SDM',
+                'role' => 'User',
             ],
         ];
 
@@ -110,6 +169,7 @@ class LdapAuthService
                     'email' => $data['email'],
                     'unit_kerja' => $data['unit_kerja'],
                     'role' => $data['role'],
+                    'pic_service_code' => $data['pic_service_code'] ?? null,
                     'password' => Hash::make('password'),
                 ]
             );

@@ -7,27 +7,70 @@ import {
     BarChart3,
     Settings,
     ChevronLeft,
-    Menu,
-    X
+    X,
+    Users,
+    Package,
+    Camera,
+    FileText
 } from 'lucide-react';
 
 export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobileOpen }) {
     const { user } = useAuth();
     const [collapsed, setCollapsed] = useState(false);
 
-    if (!user) return null;
+    const role = user?.role || 'Guest';
+    const picCode = user?.pic_service_code;
 
-    const navItems = [
-        { id: 'dashboard', label: 'Dasbor Utama', icon: LayoutDashboard, roles: ['User', 'Admin', 'Approver', 'Verificator'] },
-        { id: 'tracking', label: 'Tracking Permohonan', icon: ListOrdered, roles: ['User', 'Admin', 'Approver', 'Verificator'] },
-        { id: 'approvals', label: 'Antrean Approval', icon: CheckSquare, roles: ['Approver', 'Admin', 'Verificator'] },
-        { id: 'analytics', label: 'Dasbor Analitik', icon: BarChart3, roles: ['Admin', 'Approver'] },
-        { id: 'settings', label: 'Kelola Layanan', icon: Settings, roles: ['Admin'] },
-    ];
+    // Define navigation based on role
+    const navItems = [];
+
+    if (['User', 'Admin', 'SuperAdmin', 'Guest'].includes(role)) {
+        navItems.push({ id: 'dashboard', label: 'Dasbor Utama', icon: LayoutDashboard });
+    }
+    if (['User', 'Admin', 'SuperAdmin', 'PIC', 'Guest'].includes(role)) {
+        navItems.push({ id: 'tracking', label: 'Tracking Permohonan', icon: ListOrdered });
+    }
+    if (['Admin', 'SuperAdmin'].includes(role)) {
+        navItems.push({ id: 'analytics', label: 'Dasbor Analitik', icon: BarChart3 });
+        navItems.push({ id: 'stock', label: 'Manajemen Stok', icon: Package });
+        navItems.push({ id: 'inventory-multimedia', label: 'Inventaris Alat', icon: Camera });
+        navItems.push({ id: 'settings', label: 'Kelola Layanan', icon: Settings });
+    }
+    if (role === 'SuperAdmin') {
+        navItems.push({ id: 'approvals', label: 'Antrean Approval', icon: CheckSquare });
+        navItems.push({ id: 'users', label: 'Kelola Pengguna', icon: Users });
+    }
+
+    // PIC-specific sidebar items
+    if (role === 'PIC') {
+        navItems.push({ id: 'tracking', label: 'Daftar Permohonan', icon: ListOrdered });
+        if (picCode === 'S') {
+            navItems.push({ id: 'stock', label: 'Manajemen Stok', icon: Package });
+            navItems.push({ id: 'approvals', label: 'Persetujuan Kuota', icon: CheckSquare });
+        }
+        if (picCode === 'M') {
+            navItems.push({ id: 'inventory-multimedia', label: 'Inventaris Alat', icon: Camera });
+        }
+    }
+
+    // Remove duplicates (tracking might appear twice for PIC)
+    const uniqueNavItems = navItems.filter((item, idx, arr) => arr.findIndex(i => i.id === item.id) === idx);
+
+    const picServiceName = {
+        D: 'PIC Desain Grafis',
+        P: 'PIC Publikasi',
+        S: 'PIC Alat Promosi',
+        M: 'PIC Multimedia',
+        L: 'PIC Liputan',
+    };
+
+    const roleLabel = role === 'PIC' && picCode
+        ? picServiceName[picCode] || 'PIC'
+        : role === 'SuperAdmin' ? 'Super Admin' : role;
 
     const sidebarContent = (isMobile = false) => (
         <div className={`flex flex-col h-full bg-white border-r border-slate-200 relative ${collapsed && !isMobile ? 'w-[72px]' : 'w-[260px]'} transition-all duration-300`}>
-            {/* Collapse toggle button — centered vertically */}
+            {/* Collapse toggle button */}
             {!isMobile && (
                 <button
                     onClick={() => setCollapsed(!collapsed)}
@@ -65,41 +108,58 @@ export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobi
                 </div>
             </div>
 
+            {/* Role Badge */}
+            {(!collapsed || isMobile) && (
+                <div className="px-4 py-2 border-b border-slate-100">
+                    <div className={`px-2.5 py-1.5 rounded-xl text-[10px] font-bold text-center ${
+                        role === 'SuperAdmin' ? 'bg-violet-50 text-violet-700 border border-violet-100' :
+                        role === 'PIC' ? 'bg-green-50 text-green-700 border border-green-100' :
+                        role === 'Admin' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                        role === 'Guest' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                        'bg-slate-50 text-slate-600 border border-slate-100'
+                    }`}>
+                        {role === 'Guest' ? 'Guest Mode (Belum Login)' : roleLabel}
+                    </div>
+                </div>
+            )}
+
             {/* Navigation */}
             <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
                 {(!collapsed || isMobile) && (
                     <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Menu Utama</p>
                 )}
-                {navItems
-                    .filter(item => item.roles.includes(user.role))
-                    .map(item => {
-                        const Icon = item.icon;
-                        const isActive = currentTab === item.id;
-                        return (
-                            <button
-                                key={item.id}
-                                onClick={() => {
+                {uniqueNavItems.map(item => {
+                    const Icon = item.icon;
+                    const isActive = currentTab === item.id;
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={() => {
+                                if (!user && item.id !== 'dashboard') {
+                                    setCurrentTab('login');
+                                } else {
                                     setCurrentTab(item.id);
-                                    if (isMobile) setMobileOpen(false);
-                                }}
-                                title={collapsed && !isMobile ? item.label : undefined}
-                                className={`w-full flex items-center ${collapsed && !isMobile ? 'justify-center' : ''} space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                                    isActive
-                                        ? 'bg-green-600 text-white shadow-sm shadow-green-200'
-                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                                }`}
-                            >
-                                <Icon className="w-[18px] h-[18px] shrink-0" />
-                                {(!collapsed || isMobile) && <span className="truncate">{item.label}</span>}
-                            </button>
-                        );
-                    })}
+                                }
+                                if (isMobile) setMobileOpen(false);
+                            }}
+                            title={collapsed && !isMobile ? item.label : undefined}
+                            className={`w-full flex items-center ${collapsed && !isMobile ? 'justify-center' : ''} space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                                isActive
+                                    ? 'bg-green-600 text-white shadow-sm shadow-green-200'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                            }`}
+                        >
+                            <Icon className="w-[18px] h-[18px] shrink-0" />
+                            {(!collapsed || isMobile) && <span className="truncate">{item.label}</span>}
+                        </button>
+                    );
+                })}
             </nav>
 
             {/* Bottom version badge */}
             {(!collapsed || isMobile) && (
                 <div className="p-4 border-t border-slate-100">
-                    <p className="text-[10px] text-slate-400 text-center font-medium">SLM YARSI v1.0</p>
+                    <p className="text-[10px] text-slate-400 text-center font-medium">SLM YARSI v2.0</p>
                 </div>
             )}
         </div>
@@ -124,5 +184,3 @@ export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobi
         </>
     );
 }
-
-

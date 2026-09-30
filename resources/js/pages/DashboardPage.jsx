@@ -15,7 +15,7 @@ export default function DashboardPage({ onSelectService, onGoToTracking }) {
             setLoading(true);
             const [servicesRes, requestsRes] = await Promise.all([
                 api.get('/services'),
-                api.get('/requests?per_page=50'),
+                user ? api.get('/requests?per_page=50') : Promise.resolve({ data: { status: 'success', data: { data: [] } } }),
             ]);
 
             if (servicesRes.data?.status === 'success') {
@@ -55,32 +55,34 @@ export default function DashboardPage({ onSelectService, onGoToTracking }) {
                             <span>Sistem Layanan Marketing — Universitas YARSI</span>
                         </div>
                         <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-                            Selamat Datang, {user?.name}!
+                            {user ? `Selamat Datang, ${user.name}!` : 'Selamat Datang di Portal Layanan!'}
                         </h2>
                         <p className="text-xs sm:text-sm text-indigo-200 mt-1 max-w-xl">
-                            {user?.unit_kerja} • Pilih salah satu layanan di bawah untuk mengajukan permohonan baru.
+                            {user ? `${user.unit_kerja} • ` : ''}Pilih salah satu layanan di bawah untuk mengajukan permohonan baru.
                         </p>
                     </div>
 
                     {/* Quick Stats Badges */}
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2.5 rounded-2xl">
-                            <p className="text-[10px] uppercase font-bold text-indigo-200">Permohonan Aktif</p>
-                            <p className="text-lg font-black text-amber-300">{summary.active}</p>
+                    {user && (
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2.5 rounded-2xl">
+                                <p className="text-[10px] uppercase font-bold text-indigo-200">Permohonan Aktif</p>
+                                <p className="text-lg font-black text-amber-300">{summary.active}</p>
+                            </div>
+                            <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2.5 rounded-2xl">
+                                <p className="text-[10px] uppercase font-bold text-indigo-200">Selesai</p>
+                                <p className="text-lg font-black text-emerald-300">{summary.completed}</p>
+                            </div>
+                            <button
+                                onClick={onGoToTracking}
+                                className="px-4 py-3 bg-white text-indigo-900 font-extrabold text-xs rounded-2xl hover:bg-indigo-50 shadow-md transition-all flex items-center space-x-2 cursor-pointer"
+                            >
+                                <ListOrdered className="w-4 h-4 text-indigo-600" />
+                                <span>Pantau Status</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
                         </div>
-                        <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2.5 rounded-2xl">
-                            <p className="text-[10px] uppercase font-bold text-indigo-200">Selesai</p>
-                            <p className="text-lg font-black text-emerald-300">{summary.completed}</p>
-                        </div>
-                        <button
-                            onClick={onGoToTracking}
-                            className="px-4 py-3 bg-white text-indigo-900 font-extrabold text-xs rounded-2xl hover:bg-indigo-50 shadow-md transition-all flex items-center space-x-2 cursor-pointer"
-                        >
-                            <ListOrdered className="w-4 h-4 text-indigo-600" />
-                            <span>Pantau Status</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
+                    )}
                 </div>
             </div>
 

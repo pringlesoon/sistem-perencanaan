@@ -20,24 +20,34 @@ export default function SplitScreenLayout({ service, children }) {
                             </h4>
                         );
                     }
-                    if (trimmed.startsWith('1. ') || trimmed.startsWith('2. ') || trimmed.startsWith('3. ') || trimmed.startsWith('4. ') || trimmed.startsWith('5. ')) {
+                    if (/^\d+\.\s/.test(trimmed)) {
+                        const match = trimmed.match(/^(\d+\.)\s*(.*)/);
                         return (
-                            <div key={idx} className="flex space-x-2 items-start pl-1">
-                                <span className="font-bold text-indigo-600 shrink-0">{trimmed.slice(0, 3)}</span>
-                                <span className="text-slate-700" dangerouslySetInnerHTML={{ __html: formatBold(trimmed.slice(3)) }} />
+                            <div key={idx} className="flex space-x-2 items-start pl-1 mt-1.5">
+                                <span className="font-bold text-indigo-600 shrink-0">{match[1]}</span>
+                                <span className="text-slate-700" dangerouslySetInnerHTML={{ __html: formatBold(match[2]) }} />
                             </div>
                         );
                     }
-                    if (trimmed.startsWith('- ')) {
+                    if (/^[a-z]\.\s/i.test(trimmed)) {
+                        const match = trimmed.match(/^([a-z]\.)\s*(.*)/i);
                         return (
                             <div key={idx} className="flex space-x-2 items-start pl-4">
+                                <span className="font-bold text-slate-500 shrink-0">{match[1]}</span>
+                                <span className="text-slate-700" dangerouslySetInnerHTML={{ __html: formatBold(match[2]) }} />
+                            </div>
+                        );
+                    }
+                    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+                        return (
+                            <div key={idx} className="flex space-x-2 items-start pl-5">
                                 <span className="text-indigo-400 font-bold shrink-0">•</span>
                                 <span className="text-slate-600" dangerouslySetInnerHTML={{ __html: formatBold(trimmed.slice(2)) }} />
                             </div>
                         );
                     }
                     if (trimmed === '') return null;
-                    return <p key={idx} dangerouslySetInnerHTML={{ __html: formatBold(trimmed) }} />;
+                    return <p key={idx} className="text-slate-600" dangerouslySetInnerHTML={{ __html: formatBold(trimmed) }} />;
                 })}
             </div>
         );
