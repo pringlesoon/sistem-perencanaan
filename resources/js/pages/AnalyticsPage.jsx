@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { 
-    BarChart3, 
-    TrendingUp, 
-    Clock, 
-    CheckCircle2, 
-    AlertCircle, 
+import {
+    BarChart3,
+    TrendingUp,
+    Clock,
+    CheckCircle2,
+    AlertCircle,
     Calendar,
     Layers,
     PieChart
 } from 'lucide-react';
+import CustomSelect from '../components/CustomSelect';
 
 export default function AnalyticsPage() {
     const [analytics, setAnalytics] = useState(null);
@@ -68,16 +69,18 @@ export default function AnalyticsPage() {
 
                 <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4 text-slate-400" />
-                    <select
+                    <CustomSelect
                         value={days}
-                        onChange={(e) => setDays(Number(e.target.value))}
-                        className="px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none shadow-2xs"
-                    >
-                        <option value={7}>7 Hari Terakhir</option>
-                        <option value={30}>30 Hari Terakhir</option>
-                        <option value={90}>90 Hari Terakhir</option>
-                        <option value={0}>Sepanjang Waktu (All Time)</option>
-                    </select>
+                        onChange={(val) => setDays(Number(val))}
+                        options={[
+                            { value: 7, label: '7 Hari Terakhir' },
+                            { value: 30, label: '30 Hari Terakhir' },
+                            { value: 90, label: '90 Hari Terakhir' },
+                            { value: 0, label: 'Sepanjang Waktu (All Time)' },
+                        ]}
+                        placeholder="Periode Waktu"
+                        align="right"
+                    />
                 </div>
             </div>
 

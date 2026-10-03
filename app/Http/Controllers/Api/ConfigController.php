@@ -29,10 +29,10 @@ class ConfigController extends Controller
     public function update(Request $request): JsonResponse
     {
         $user = Auth::user();
-        if (!$user || !$user->isAdmin()) {
+        if (!$user || !$user->hasAdminAccess()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Akses ditolak. Hanya Admin yang dapat mengubah konfigurasi sistem.',
+                'message' => 'Akses ditolak. Hanya Admin dan SuperAdmin yang dapat mengubah konfigurasi sistem.',
             ], 403);
         }
 

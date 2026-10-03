@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Lock, User, Sparkles, ArrowRight, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react';
 
-export default function LoginPage({ onBackToGuest }) {
+export default function LoginPage({ onBackToGuest, onSuccess }) {
     const { login } = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -14,7 +14,10 @@ export default function LoginPage({ onBackToGuest }) {
         setError(null);
         setLoading(true);
         try {
-            await login(username, password);
+            const res = await login(username, password);
+            if (onSuccess) {
+                onSuccess(res?.data?.user);
+            }
         } catch (err) {
             setError(err.message || 'Login gagal. Periksa username dan password Anda.');
         } finally {

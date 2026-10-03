@@ -161,18 +161,14 @@ export default function ApprovalsPage({ onOpenTracking }) {
                                             <PackageCheck className="w-4 h-4 text-amber-600" />
                                             <span>Rincian Kuota Suvenir: <strong>{suvenir.nama_item}</strong></span>
                                         </p>
-                                        <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                                        <div className="grid grid-cols-2 gap-2 text-center pt-1">
                                             <div className="p-2 bg-white rounded-xl border border-amber-200">
                                                 <p className="text-[10px] text-slate-500 font-bold uppercase">Total Diminta</p>
-                                                <p className="text-base font-black text-slate-900">{suvenir.qty_diminta}</p>
+                                                <p className="text-base font-black text-slate-900">{suvenir.qty_diminta} unit</p>
                                             </div>
-                                            <div className="p-2 bg-white rounded-xl border border-emerald-200">
-                                                <p className="text-[10px] text-emerald-600 font-bold uppercase">Auto-Approve</p>
-                                                <p className="text-base font-black text-emerald-700">{suvenir.qty_disetujui_otomatis}</p>
-                                            </div>
-                                            <div className="p-2 bg-white rounded-xl border border-rose-200">
-                                                <p className="text-[10px] text-rose-600 font-bold uppercase">Perlu Otorisasi</p>
-                                                <p className="text-base font-black text-rose-700">{suvenir.qty_perlu_approval}</p>
+                                            <div className="p-2 bg-white rounded-xl border border-violet-200">
+                                                <p className="text-[10px] text-violet-600 font-bold uppercase">Perlu Otorisasi PIC</p>
+                                                <p className="text-base font-black text-violet-700">{suvenir.qty_perlu_approval > 0 ? suvenir.qty_perlu_approval : suvenir.qty_diminta} unit</p>
                                             </div>
                                         </div>
                                     </div>

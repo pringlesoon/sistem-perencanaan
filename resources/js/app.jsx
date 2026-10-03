@@ -22,16 +22,41 @@ function AppContent() {
     const [selectedPermohonanId, setSelectedPermohonanId] = useState(null);
     const [mobileOpen, setMobileOpen] = useState(false);
 
-    const setCurrentTab = (tab) => {
-        localStorage.setItem('sapt_active_tab', tab);
-        setCurrentTabState(tab);
+    const prevUserRef = React.useRef(user);
+
+    // Dapatkan menu paling atas di sidebar sesuai role
+    const getTopMenuTab = (role) => {
+        return role === 'PIC' ? 'tracking' : 'dashboard';
     };
 
-    // GUEST MODE PROTECTIONS: redirect to login if attempting to access protected tabs
-    React.useEffect(() => {
-        if (!loading && !user && currentTab !== 'dashboard' && currentTab !== 'login') {
-            setCurrentTab('login');
+    const setCurrentTab = (tab) => {
+        let targetTab = tab;
+        // PIC role cannot access dashboard or request-form
+        if (user?.role === 'PIC' && (tab === 'dashboard' || tab === 'request-form')) {
+            targetTab = 'tracking';
         }
+        localStorage.setItem('sapt_active_tab', targetTab);
+        setCurrentTabState(targetTab);
+    };
+
+    // GUEST & ROLE PROTECTIONS & LOGIN REDIRECTIONS:
+    React.useEffect(() => {
+        if (!loading) {
+            // Ketika baru saja login (transisi dari belum login ke sudah login):
+            // langsung arahkan ke menu utama paling atas sidebar
+            if (!prevUserRef.current && user) {
+                setCurrentTab(getTopMenuTab(user.role));
+            }
+            // Guest redirected to login if accessing protected tabs
+            else if (!user && currentTab !== 'dashboard' && currentTab !== 'login') {
+                setCurrentTab('login');
+            }
+            // PIC cannot access dashboard or request-form because PIC cannot create requests
+            else if (user?.role === 'PIC' && (currentTab === 'dashboard' || currentTab === 'request-form')) {
+                setCurrentTab('tracking');
+            }
+        }
+        prevUserRef.current = user;
     }, [user, currentTab, loading]);
 
     if (loading) {
@@ -46,7 +71,14 @@ function AppContent() {
     }
 
     if (!user && currentTab === 'login') {
-        return <LoginPage onBackToGuest={() => setCurrentTab('dashboard')} />;
+        return (
+            <LoginPage
+                onBackToGuest={() => setCurrentTab('dashboard')}
+                onSuccess={(loggedInUser) => {
+                    setCurrentTab(getTopMenuTab(loggedInUser?.role));
+                }}
+            />
+        );
     }
 
     const handleSelectService = (code) => {
@@ -80,7 +112,7 @@ function AppContent() {
                 />
 
                 {/* Scrollable content area with sticky/natural bottom footer */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
                     <div className="min-h-full flex flex-col">
                         <main className="flex-1">
                             {currentTab === 'dashboard' && (

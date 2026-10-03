@@ -12,6 +12,7 @@ const formatDurasi = (menitFloat) => {
 
 import { useAuth } from '../context/AuthContext';
 import StatusTimeline from '../components/StatusTimeline';
+import CustomSelect from '../components/CustomSelect';
 import api from '../services/api';
 import {
     Search,
@@ -37,7 +38,10 @@ import {
     Gift,
     Megaphone,
     Palette,
-    Camera
+    Camera,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown
 } from 'lucide-react';
 
 // --- Service definitions ---
@@ -48,6 +52,22 @@ const SERVICES = [
     { code: 'M', name: 'Layanan Multimedia, Dokumentasi, & Live Streaming', color: 'emerald' },
     { code: 'L', name: 'Layanan Liputan & Berita', color: 'rose' },
 ];
+
+const serviceIconMap = {
+    D: Palette,
+    P: Megaphone,
+    S: Gift,
+    M: Video,
+    L: Camera,
+};
+
+const serviceThemeMap = {
+    D: { colorDot: 'bg-indigo-500', iconBg: 'bg-indigo-100 text-indigo-700' },
+    P: { colorDot: 'bg-sky-500', iconBg: 'bg-sky-100 text-sky-700' },
+    S: { colorDot: 'bg-amber-500', iconBg: 'bg-amber-100 text-amber-700' },
+    M: { colorDot: 'bg-emerald-500', iconBg: 'bg-emerald-100 text-emerald-700' },
+    L: { colorDot: 'bg-rose-500', iconBg: 'bg-rose-100 text-rose-700' },
+};
 
 // Kanban columns per service
 const DEFAULT_KANBAN_COLUMNS = [
@@ -143,9 +163,16 @@ function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDra
                 {req.judul_permohonan}
             </h4>
 
-            <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600 mb-2">
-                {req.service?.name || req.kategori}
-            </span>
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">
+                    {req.service?.name || req.kategori || 'Layanan'}
+                </span>
+                {req.status !== column.key && (
+                    <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ${statusBadgeStyles[req.status] || 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                        {req.status}
+                    </span>
+                )}
+            </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
                 <div className="flex items-center space-x-1.5 min-w-0">
@@ -230,8 +257,8 @@ function RequestFormDetail({ detail }) {
                     <div>
                         <p className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Pemohon</p>
                         <p className="font-semibold text-slate-800 mt-0.5">
-                            {detail.user?.name}
-                            <span className="block text-[10px] text-slate-400 font-normal">{detail.user?.unit_kerja || 'Unit Kerja YARSI'}</span>
+                            {formData?.nama_pemohon || detail.user?.name}
+                            <span className="block text-[10px] text-slate-400 font-normal">{formData?.unit_pemohon || detail.user?.unit_kerja || 'Unit Kerja YARSI'}</span>
                         </p>
                     </div>
                 </div>
@@ -360,9 +387,9 @@ function RequestFormDetail({ detail }) {
                                 <div className="text-right">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase block">Status Otorisasi</span>
                                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${detail.suvenir_detail.status_approval === 'Disetujui' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                            detail.suvenir_detail.status_approval === 'Disetujui Sebagian' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                detail.suvenir_detail.status_approval === 'Ditolak' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                                    'bg-purple-50 text-purple-700 border-purple-200'
+                                        detail.suvenir_detail.status_approval === 'Disetujui Sebagian' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                            detail.suvenir_detail.status_approval === 'Ditolak' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                                'bg-purple-50 text-purple-700 border-purple-200'
                                         }`}>
                                         {detail.suvenir_detail.status_approval}
                                     </span>
@@ -373,18 +400,19 @@ function RequestFormDetail({ detail }) {
 
                     {/* Kuota Approval Breakdown */}
                     {detail.suvenir_detail && (
-                        <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="grid grid-cols-2 gap-2 text-center">
                             <div className="p-2.5 bg-white rounded-xl border border-amber-200">
                                 <p className="text-[10px] text-slate-500 font-bold uppercase">Total Diminta</p>
                                 <p className="text-base font-black text-slate-900 mt-0.5">{detail.suvenir_detail.qty_diminta} unit</p>
                             </div>
-                            <div className="p-2.5 bg-white rounded-xl border border-emerald-200">
-                                <p className="text-[10px] text-emerald-600 font-bold uppercase">Disetujui</p>
-                                <p className="text-base font-black text-emerald-700 mt-0.5">{detail.suvenir_detail.qty_disetujui_otomatis} unit</p>
-                            </div>
-                            <div className="p-2.5 bg-white rounded-xl border border-amber-300">
-                                <p className="text-[10px] text-amber-700 font-bold uppercase">Perlu Kuota</p>
-                                <p className="text-base font-black text-amber-700 mt-0.5">{detail.suvenir_detail.qty_perlu_approval} unit</p>
+                            <div className="p-2.5 bg-white rounded-xl border border-amber-200">
+                                <p className="text-[10px] text-amber-800 font-bold uppercase">Status Persetujuan</p>
+                                <p className="text-xs font-black text-amber-900 mt-1">
+                                    {detail.suvenir_detail.status_approval === 'Disetujui' ? `${detail.suvenir_detail.qty_diminta} unit (Disetujui Penuh)` :
+                                        detail.suvenir_detail.status_approval === 'Disetujui Sebagian' ? `${detail.suvenir_detail.qty_disetujui_otomatis} unit (Disetujui Sebagian)` :
+                                            detail.suvenir_detail.status_approval === 'Ditolak' ? 'Ditolak' :
+                                                'Menunggu Verifikasi PIC'}
+                                </p>
                             </div>
                         </div>
                     )}
@@ -593,6 +621,7 @@ export default function TrackingPage({ defaultSelectedId }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
+    const [dateSort, setDateSort] = useState('desc'); // 'desc' (Terbaru) | 'asc' (Terlama)
 
     // Active service: for PIC it is strictly locked to their service code
     const activeService = isPic ? (picServiceCode || '') : serviceFilter;
@@ -634,7 +663,7 @@ export default function TrackingPage({ defaultSelectedId }) {
     };
 
     const loadRequests = async () => {
-        if (!activeService && user?.role !== 'User') {
+        if (isPic && !activeService) {
             setRequests([]);
             setLoading(false);
             return;
@@ -816,18 +845,50 @@ export default function TrackingPage({ defaultSelectedId }) {
         window.open(`/api/v1/export/${format}?${params.toString()}`, '_blank');
     };
 
+    // Filter and sort requests based on date range and sort order (applies to both Kanban and Table)
+    const processedRequests = React.useMemo(() => {
+        let result = [...requests];
+
+        // 1. Date Range Filtering
+        if (dateFrom) {
+            const from = new Date(dateFrom);
+            from.setHours(0, 0, 0, 0);
+            result = result.filter(r => new Date(r.created_at) >= from);
+        }
+        if (dateTo) {
+            const to = new Date(dateTo);
+            to.setHours(23, 59, 59, 999);
+            result = result.filter(r => new Date(r.created_at) <= to);
+        }
+
+        // 2. Date Sorting (Terbaru / Terlama)
+        result.sort((a, b) => {
+            const timeA = new Date(a.created_at).getTime();
+            const timeB = new Date(b.created_at).getTime();
+            return dateSort === 'asc' ? timeA - timeB : timeB - timeA;
+        });
+
+        return result;
+    }, [requests, dateFrom, dateTo, dateSort]);
+
     // Group requests for kanban
-    const getFilteredGrouped = () => {
-        let filtered = requests;
-        if (dateFrom) { const from = new Date(dateFrom); from.setHours(0, 0, 0, 0); filtered = filtered.filter(r => new Date(r.created_at) >= from); }
-        if (dateTo) { const to = new Date(dateTo); to.setHours(23, 59, 59, 999); filtered = filtered.filter(r => new Date(r.created_at) <= to); }
+    const groupedRequests = React.useMemo(() => {
         const grouped = {};
         activeKanbanColumns.forEach(col => { grouped[col.key] = []; });
-        filtered.forEach(req => { if (grouped[req.status]) grouped[req.status].push(req); });
+        processedRequests.forEach(req => {
+            if (grouped[req.status]) {
+                grouped[req.status].push(req);
+            } else if (!activeService) {
+                // Map intermediate service-specific statuses into Diproses column when viewing all services
+                if (['Pemeriksaan Konten', 'Publikasi', 'Menunggu Approval Sebagian'].includes(req.status)) {
+                    if (grouped['Diproses']) grouped['Diproses'].push(req);
+                } else if (grouped['Diajukan']) {
+                    grouped['Diajukan'].push(req);
+                }
+            }
+        });
         return grouped;
-    };
-
-    const groupedRequests = getFilteredGrouped();
+    }, [processedRequests, activeKanbanColumns, activeService]);
 
     // Service lookup
     const getServiceName = (req) => req.service?.name || req.kategori || '-';
@@ -850,23 +911,23 @@ export default function TrackingPage({ defaultSelectedId }) {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                    {/* View toggle */}
-                    {(isAdmin || isPic) && (
-                        <div className="flex items-center bg-slate-100 rounded-xl p-1">
-                            <button
-                                onClick={() => setViewMode('kanban')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'kanban' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
-                            >
-                                <LayoutGrid className="w-3.5 h-3.5 inline mr-1" />Kanban
-                            </button>
-                            <button
-                                onClick={() => setViewMode('table')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'table' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
-                            >
-                                <List className="w-3.5 h-3.5 inline mr-1" />Tabel
-                            </button>
-                        </div>
-                    )}
+                    {/* View toggle — available for all roles including User */}
+                    <div className="flex items-center bg-slate-100 rounded-xl p-1 shadow-2xs border border-slate-200/60">
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('kanban')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center ${viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                            <LayoutGrid className="w-3.5 h-3.5 mr-1.5" />Kanban
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('table')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center ${viewMode === 'table' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                            <List className="w-3.5 h-3.5 mr-1.5" />Tabel
+                        </button>
+                    </div>
 
                     {isAdmin && (
                         <div className="flex items-center space-x-2">
@@ -902,16 +963,24 @@ export default function TrackingPage({ defaultSelectedId }) {
                         <span>PIC: {SERVICES.find(s => s.code === (user?.pic_service_code || activeService))?.name || `Layanan (${activeService})`}</span>
                     </div>
                 ) : (
-                    <select
-                        value={serviceFilter}
-                        onChange={(e) => setServiceFilter(e.target.value)}
-                        className="px-2.5 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:bg-white outline-none"
-                    >
-                        <option value="">Pilih Layanan</option>
-                        {SERVICES.map(svc => (
-                            <option key={svc.code} value={svc.code}>{svc.name}</option>
-                        ))}
-                    </select>
+                    <div className="min-w-[210px]">
+                        <CustomSelect
+                            value={serviceFilter}
+                            onChange={(val) => setServiceFilter(val)}
+                            options={[
+                                { value: '', label: 'Semua Layanan', icon: Filter },
+                                ...SERVICES.map(svc => ({
+                                    value: svc.code,
+                                    label: svc.name,
+                                    icon: serviceIconMap[svc.code] || Filter,
+                                    iconBg: serviceThemeMap[svc.code]?.iconBg || 'bg-slate-100 text-slate-700',
+                                    colorDot: serviceThemeMap[svc.code]?.colorDot,
+                                }))
+                            ]}
+                            placeholder="Semua Layanan"
+                            className="bg-slate-50 hover:bg-white"
+                        />
+                    </div>
                 )}
 
                 {/* Date range */}
@@ -923,192 +992,211 @@ export default function TrackingPage({ defaultSelectedId }) {
                     <span className="text-xs text-slate-400">s/d</span>
                     <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="px-2.5 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:bg-white outline-none" title="Sampai tanggal" />
                 </div>
-                {(dateFrom || dateTo) && (
-                    <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="px-2 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-xl font-semibold transition-colors">
+
+                {/* Sort Tanggal — works in both Kanban and Table views */}
+                <div className="flex items-center">
+                    <button
+                        type="button"
+                        onClick={() => setDateSort(prev => prev === 'desc' ? 'asc' : 'desc')}
+                        className={`flex items-center space-x-1.5 px-3 py-2 border rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs ${dateSort === 'asc' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`}
+                        title={`Urutkan tanggal: ${dateSort === 'desc' ? 'Terbaru ke Terlama' : 'Terlama ke Terbaru'}. Klik untuk beralih.`}
+                    >
+                        <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Urutan: {dateSort === 'desc' ? 'Terbaru' : 'Terlama'}</span>
+                        {dateSort === 'desc' ? (
+                            <ArrowDown className="w-3 h-3 text-slate-400" />
+                        ) : (
+                            <ArrowUp className="w-3 h-3 text-indigo-600" />
+                        )}
+                    </button>
+                </div>
+
+                {(dateFrom || dateTo || dateSort !== 'desc') && (
+                    <button
+                        type="button"
+                        onClick={() => { setDateFrom(''); setDateTo(''); setDateSort('desc'); }}
+                        className="px-2.5 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-xl font-semibold transition-colors cursor-pointer"
+                        title="Reset filter tanggal dan pengurutan ke kondisi default"
+                    >
                         Reset Tanggal
                     </button>
                 )}
 
-                <button onClick={loadRequests} className="p-2 text-slate-400 hover:text-green-600 hover:bg-slate-100 rounded-xl transition-colors" title="Refresh data">
+                <button onClick={loadRequests} className="p-2 text-slate-400 hover:text-green-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer" title="Refresh data">
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
 
-            {/* Empty state for unselected service in Kanban */}
-            {viewMode === 'kanban' && !activeService && (
-                <div className="flex-1 flex items-center justify-center min-h-[380px]">
-                    <div className="text-center space-y-3 py-16 px-6 bg-white rounded-3xl border border-slate-200 shadow-xs max-w-md mx-auto">
-                        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-                            <LayoutGrid className="w-8 h-8" />
-                        </div>
-                        <h3 className="text-base font-extrabold text-slate-800">Pilih Layanan Terlebih Dahulu</h3>
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                            Pilih layanan dari dropdown di atas untuk menampilkan alur status khusus dan Board Kanban permohonan.
+            {/* Kanban / Table View */}
+            {viewMode === 'table' ? (
+                /* TABLE VIEW */
+                <div className="flex-1 overflow-auto">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="bg-slate-50 border-b border-slate-100">
+                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">No. Tiket</th>
+                                    <th
+                                        onClick={() => setDateSort(prev => prev === 'desc' ? 'asc' : 'desc')}
+                                        className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] cursor-pointer hover:text-indigo-600 transition-colors select-none group"
+                                        title="Klik untuk mengubah pengurutan tanggal (Terbaru / Terlama)"
+                                    >
+                                        <div className="flex items-center space-x-1">
+                                            <span>Tanggal</span>
+                                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 inline" />
+                                            <span className="text-[9px] font-semibold text-indigo-600">
+                                                ({dateSort === 'desc' ? 'Terbaru' : 'Terlama'})
+                                            </span>
+                                        </div>
+                                    </th>
+                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Layanan</th>
+                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Judul</th>
+                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Pemohon</th>
+                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Status</th>
+                                    <th className="text-right px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {loading ? (
+                                    <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">
+                                        <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
+                                        <p>Memuat data...</p>
+                                    </td></tr>
+                                ) : processedRequests.length === 0 ? (
+                                    <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">
+                                        <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                        <p className="text-xs font-medium">Tidak ada permohonan yang sesuai filter</p>
+                                    </td></tr>
+                                ) : processedRequests.map(req => (
+                                    <tr
+                                        key={req.id}
+                                        className="hover:bg-indigo-50/40 transition-colors cursor-pointer"
+                                        onDoubleClick={() => openDetail(req.id)}
+                                        title="Klik ganda (double-click) untuk melihat detail lengkap permohonan"
+                                    >
+                                        <td className="px-4 py-3">
+                                            <span className="font-mono font-bold text-indigo-700 text-[11px]">{req.nomor_tiket}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-600">
+                                            {new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className="font-bold text-slate-800 text-xs">{getFullServiceName(req)}</span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className="font-semibold text-slate-800 line-clamp-1">{req.judul_permohonan}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-600">{req.user?.name}</td>
+                                        <td className="px-4 py-3">
+                                            <span className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${statusBadgeStyles[req.status] || 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                                                {req.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <div className="flex items-center justify-end space-x-1.5">
+                                                {canUpdateStatus && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openUpdateModalForReq(req);
+                                                        }}
+                                                        className="px-2.5 py-1 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+                                                        title="Ubah status permohonan ini"
+                                                    >
+                                                        Ubah Status
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => openDetail(req.id)}
+                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                                    title="Lihat detail permohonan"
+                                                >
+                                                    <Eye className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <p className="text-[11px] text-slate-400 text-center py-2.5 border-t border-slate-100 font-medium">
+                            💡 Tips: Double-click (klik ganda) pada baris tabel mana saja untuk langsung memunculkan preview detail lengkap.
                         </p>
                     </div>
                 </div>
-            )}
-
-            {/* Kanban / Table View */}
-            {(viewMode === 'table' || activeService) && (
-                viewMode === 'table' ? (
-                    /* TABLE VIEW */
-                    <div className="flex-1 overflow-auto">
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                            <table className="w-full text-xs">
-                                <thead>
-                                    <tr className="bg-slate-50 border-b border-slate-100">
-                                        <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">No. Tiket</th>
-                                        <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Tanggal</th>
-                                        <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Layanan</th>
-                                        <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Judul</th>
-                                        <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Pemohon</th>
-                                        <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Status</th>
-                                        <th className="text-right px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {loading ? (
-                                        <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">
-                                            <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
-                                            <p>Memuat data...</p>
-                                        </td></tr>
-                                    ) : requests.length === 0 ? (
-                                        <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">
-                                            <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                            <p className="text-xs font-medium">Tidak ada permohonan</p>
-                                        </td></tr>
-                                    ) : requests.map(req => (
-                                        <tr
-                                            key={req.id}
-                                            className="hover:bg-indigo-50/40 transition-colors cursor-pointer"
-                                            onDoubleClick={() => openDetail(req.id)}
-                                            title="Klik ganda (double-click) untuk melihat detail lengkap permohonan"
-                                        >
-                                            <td className="px-4 py-3">
-                                                <span className="font-mono font-bold text-indigo-700 text-[11px]">{req.nomor_tiket}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-slate-600">
-                                                {new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className="font-bold text-slate-800 text-xs">{getFullServiceName(req)}</span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className="font-semibold text-slate-800 line-clamp-1">{req.judul_permohonan}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-slate-600">{req.user?.name}</td>
-                                            <td className="px-4 py-3">
-                                                <span className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${statusBadgeStyles[req.status] || 'bg-slate-50 border-slate-200 text-slate-700'}`}>
-                                                    {req.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="flex items-center justify-end space-x-1.5">
-                                                    {canUpdateStatus && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                openUpdateModalForReq(req);
-                                                            }}
-                                                            className="px-2.5 py-1 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
-                                                            title="Ubah status permohonan ini"
-                                                        >
-                                                            Ubah Status
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        onClick={() => openDetail(req.id)}
-                                                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                                                        title="Lihat detail permohonan"
-                                                    >
-                                                        <Eye className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                            <p className="text-[11px] text-slate-400 text-center py-2.5 border-t border-slate-100 font-medium">
-                                💡 Tips: Double-click (klik ganda) pada baris tabel mana saja untuk langsung memunculkan preview detail lengkap.
-                            </p>
+            ) : (
+                /* KANBAN VIEW */
+                <div
+                    ref={scrollRef}
+                    onDragOver={canDrag ? handleBoardDragOver : undefined}
+                    onDragLeave={() => {
+                        if (scrollAnimRef.current) { cancelAnimationFrame(scrollAnimRef.current); scrollAnimRef.current = null; }
+                    }}
+                    className="flex-1 overflow-x-auto pb-4 scroll-smooth"
+                >
+                    {loading ? (
+                        <div className="flex items-center justify-center py-20">
+                            <div className="text-center space-y-2">
+                                <div className="w-8 h-8 border-3 border-green-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                                <p className="text-xs text-slate-500 font-medium">Memuat data permohonan...</p>
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    /* KANBAN VIEW */
-                    <div
-                        ref={scrollRef}
-                        onDragOver={canDrag ? handleBoardDragOver : undefined}
-                        onDragLeave={() => {
-                            if (scrollAnimRef.current) { cancelAnimationFrame(scrollAnimRef.current); scrollAnimRef.current = null; }
-                        }}
-                        className="flex-1 overflow-x-auto pb-4 scroll-smooth"
-                    >
-                        {loading ? (
-                            <div className="flex items-center justify-center py-20">
-                                <div className="text-center space-y-2">
-                                    <div className="w-8 h-8 border-3 border-green-600 border-t-transparent rounded-full animate-spin mx-auto" />
-                                    <p className="text-xs text-slate-500 font-medium">Memuat data permohonan...</p>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex gap-4 min-w-max h-full">
-                                {activeKanbanColumns.map(column => {
-                                    const items = groupedRequests[column.key] || [];
-                                    const isDropTarget = canDrag && dragOverColumn === column.key && draggedItem?.status !== column.key;
-                                    return (
-                                        <div
-                                            key={column.key}
-                                            onDragOver={canDrag ? (e) => handleDragOver(e, column.key) : undefined}
-                                            onDragLeave={canDrag ? handleDragLeave : undefined}
-                                            onDrop={canDrag ? (e) => handleDrop(e, column.key) : undefined}
-                                            className={`w-[280px] flex-shrink-0 flex flex-col bg-slate-50/80 rounded-2xl border transition-all duration-150 ${isDropTarget
-                                                    ? `${column.borderColor} border-2 ring-2 ring-offset-1 ring-${column.color}-400 shadow-lg`
-                                                    : 'border-slate-200'
-                                                }`}
-                                        >
-                                            {/* Column Header */}
-                                            <div className={`${column.headerBg} px-4 py-3 rounded-t-2xl border-b ${column.borderColor} flex items-center justify-between`}>
-                                                <h3 className={`text-xs font-bold ${column.textColor}`}>{column.label}</h3>
-                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${column.bgCard} ${column.textColor} border ${column.borderColor}`}>
-                                                    {items.length}
-                                                </span>
-                                            </div>
-
-                                            {/* Column Body */}
-                                            <div className={`flex-1 p-2.5 space-y-2.5 overflow-y-auto max-h-[calc(100vh-320px)] rounded-b-2xl transition-colors duration-150 ${isDropTarget ? `${column.bgCard} bg-opacity-60` : ''}`}>
-                                                {isDropTarget && (
-                                                    <div className={`border-2 border-dashed ${column.borderColor} rounded-xl py-4 text-center`}>
-                                                        <p className={`text-[11px] font-bold ${column.textColor}`}>Lepas di sini →</p>
-                                                    </div>
-                                                )}
-                                                {items.length === 0 && !isDropTarget ? (
-                                                    <div className="text-center py-8 text-slate-400">
-                                                        <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                                        <p className="text-[11px] font-medium">Tidak ada permohonan</p>
-                                                    </div>
-                                                ) : (
-                                                    items.map(req => (
-                                                        <KanbanCard
-                                                            key={req.id}
-                                                            req={req}
-                                                            column={column}
-                                                            onOpenDetail={openDetail}
-                                                            isDraggable={canDrag}
-                                                            onDragStart={handleDragStart}
-                                                            onDragEnd={handleDragEnd}
-                                                        />
-                                                    ))
-                                                )}
-                                            </div>
+                    ) : (
+                        <div className="flex gap-4 min-w-max h-full">
+                            {activeKanbanColumns.map(column => {
+                                const items = groupedRequests[column.key] || [];
+                                const isDropTarget = canDrag && dragOverColumn === column.key && draggedItem?.status !== column.key;
+                                return (
+                                    <div
+                                        key={column.key}
+                                        onDragOver={canDrag ? (e) => handleDragOver(e, column.key) : undefined}
+                                        onDragLeave={canDrag ? handleDragLeave : undefined}
+                                        onDrop={canDrag ? (e) => handleDrop(e, column.key) : undefined}
+                                        className={`w-[280px] flex-shrink-0 flex flex-col bg-slate-50/80 rounded-2xl border transition-all duration-150 ${isDropTarget
+                                            ? `${column.borderColor} border-2 ring-2 ring-offset-1 ring-${column.color}-400 shadow-lg`
+                                            : 'border-slate-200'
+                                            }`}
+                                    >
+                                        {/* Column Header */}
+                                        <div className={`${column.headerBg} px-4 py-3 rounded-t-2xl border-b ${column.borderColor} flex items-center justify-between`}>
+                                            <h3 className={`text-xs font-bold ${column.textColor}`}>{column.label}</h3>
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${column.bgCard} ${column.textColor} border ${column.borderColor}`}>
+                                                {items.length}
+                                            </span>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                )
+
+                                        {/* Column Body */}
+                                        <div className={`flex-1 p-2.5 space-y-2.5 overflow-y-auto custom-scrollbar max-h-[calc(100vh-320px)] rounded-b-2xl transition-colors duration-150 ${isDropTarget ? `${column.bgCard} bg-opacity-60` : ''}`}>
+                                            {isDropTarget && (
+                                                <div className={`border-2 border-dashed ${column.borderColor} rounded-xl py-4 text-center`}>
+                                                    <p className={`text-[11px] font-bold ${column.textColor}`}>Lepas di sini →</p>
+                                                </div>
+                                            )}
+                                            {items.length === 0 && !isDropTarget ? (
+                                                <div className="text-center py-8 text-slate-400">
+                                                    <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                    <p className="text-[11px] font-medium">Tidak ada permohonan</p>
+                                                </div>
+                                            ) : (
+                                                items.map(req => (
+                                                    <KanbanCard
+                                                        key={req.id}
+                                                        req={req}
+                                                        column={column}
+                                                        onOpenDetail={openDetail}
+                                                        isDraggable={canDrag}
+                                                        onDragStart={handleDragStart}
+                                                        onDragEnd={handleDragEnd}
+                                                    />
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
             )}
 
             {/* Loading Detail Overlay */}
@@ -1124,9 +1212,9 @@ export default function TrackingPage({ defaultSelectedId }) {
             {/* Detail Modal */}
             {selectedDetail && (
                 <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 animate-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                         {/* Modal Header */}
-                        <div className="flex items-start justify-between border-b border-slate-100 pb-4 mb-5">
+                        <div className="flex items-start justify-between border-b border-slate-100 p-6 sm:px-8 pb-4 shrink-0 bg-white">
                             <div>
                                 <div className="flex items-center space-x-2 mb-1">
                                     <span className="font-mono text-sm font-black text-indigo-700">{selectedDetail.nomor_tiket}</span>
@@ -1139,13 +1227,13 @@ export default function TrackingPage({ defaultSelectedId }) {
                                     Diajukan oleh: <strong>{selectedDetail.user?.name}</strong> ({selectedDetail.user?.unit_kerja})
                                 </p>
                             </div>
-                            <button onClick={() => setSelectedDetail(null)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+                            <button onClick={() => setSelectedDetail(null)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
                         {/* Modal Body */}
-                        <div className="space-y-6">
+                        <div className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
                             {/* Form-specific detail */}
                             <RequestFormDetail detail={selectedDetail} />
 
@@ -1220,15 +1308,17 @@ export default function TrackingPage({ defaultSelectedId }) {
                         <form onSubmit={handleUpdateStatusSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">Status Baru</label>
-                                <select
+                                <CustomSelect
                                     value={targetStatus}
-                                    onChange={(e) => setTargetStatus(e.target.value)}
-                                    className="w-full text-xs px-3 py-2 border border-slate-300 rounded-xl bg-white"
-                                >
-                                    {getStatusOptions().map(s => (
-                                        <option key={s} value={s}>{s}</option>
-                                    ))}
-                                </select>
+                                    onChange={(val) => setTargetStatus(val)}
+                                    options={getStatusOptions().map(s => ({
+                                        value: s,
+                                        label: s,
+                                        colorDot: s === 'Diajukan' ? 'bg-amber-500' : s === 'Diproses' ? 'bg-blue-500' : s === 'Direvisi' ? 'bg-orange-500' : s === 'Selesai' ? 'bg-emerald-500' : 'bg-rose-500'
+                                    }))}
+                                    placeholder="Pilih Status"
+                                    className="w-full bg-white"
+                                />
                             </div>
 
                             <div>

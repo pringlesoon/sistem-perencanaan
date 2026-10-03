@@ -19,6 +19,7 @@ import {
     X,
     Filter
 } from 'lucide-react';
+import CustomSelect from '../components/CustomSelect';
 
 export default function StockManagementPage({ initialTab = 'suvenir' }) {
     const { user } = useAuth();
@@ -297,17 +298,18 @@ export default function StockManagementPage({ initialTab = 'suvenir' }) {
                 {activeCategory === 'multimedia' && (
                     <div className="flex items-center space-x-2">
                         <Filter className="w-3.5 h-3.5 text-slate-400" />
-                        <select
+                        <CustomSelect
                             value={conditionFilter}
-                            onChange={(e) => setConditionFilter(e.target.value)}
-                            className="px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:bg-white outline-none font-medium"
-                        >
-                            <option value="">Semua Kondisi</option>
-                            <option value="Bagus/Oke">Bagus / Oke</option>
-                            <option value="Sedang Diperbaiki">Sedang Diperbaiki</option>
-                            <option value="Rusak">Rusak</option>
-                            <option value="Hilang">Hilang</option>
-                        </select>
+                            onChange={(val) => setConditionFilter(val)}
+                            options={[
+                                { value: '', label: 'Semua Kondisi' },
+                                { value: 'Bagus/Oke', label: 'Bagus / Oke', colorDot: 'bg-emerald-500' },
+                                { value: 'Sedang Diperbaiki', label: 'Sedang Diperbaiki', colorDot: 'bg-amber-500' },
+                                { value: 'Rusak', label: 'Rusak', colorDot: 'bg-rose-500' },
+                                { value: 'Hilang', label: 'Hilang', colorDot: 'bg-slate-400' },
+                            ]}
+                            placeholder="Semua Kondisi"
+                        />
                     </div>
                 )}
 
@@ -454,16 +456,18 @@ export default function StockManagementPage({ initialTab = 'suvenir' }) {
                                             {activeCategory === 'multimedia' && (
                                                 <td className="px-4 py-3.5">
                                                     {(isAdmin || isPicM) ? (
-                                                        <select
+                                                        <CustomSelect
                                                             value={item.kondisi || 'Bagus/Oke'}
-                                                            onChange={(e) => handleUpdateCondition(item, e.target.value)}
-                                                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border outline-none cursor-pointer ${conditionBadgeStyle(item.kondisi)}`}
-                                                        >
-                                                            <option value="Bagus/Oke">Bagus / Oke</option>
-                                                            <option value="Sedang Diperbaiki">Sedang Diperbaiki</option>
-                                                            <option value="Rusak">Rusak</option>
-                                                            <option value="Hilang">Hilang</option>
-                                                        </select>
+                                                            onChange={(val) => handleUpdateCondition(item, val)}
+                                                            options={[
+                                                                { value: 'Bagus/Oke', label: 'Bagus / Oke', colorDot: 'bg-emerald-500' },
+                                                                { value: 'Sedang Diperbaiki', label: 'Sedang Diperbaiki', colorDot: 'bg-amber-500' },
+                                                                { value: 'Rusak', label: 'Rusak', colorDot: 'bg-rose-500' },
+                                                                { value: 'Hilang', label: 'Hilang', colorDot: 'bg-slate-400' },
+                                                            ]}
+                                                            placeholder="Pilih Kondisi"
+                                                            className={`py-1 px-2.5 text-xs font-bold ${conditionBadgeStyle(item.kondisi)}`}
+                                                        />
                                                     ) : (
                                                         <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${conditionBadgeStyle(item.kondisi)}`}>
                                                             {item.kondisi || 'Bagus/Oke'}
@@ -551,16 +555,18 @@ export default function StockManagementPage({ initialTab = 'suvenir' }) {
                             {activeCategory === 'multimedia' && (
                                 <div>
                                     <label className="block font-bold text-slate-700 mb-1">Kondisi Alat *</label>
-                                    <select
+                                    <CustomSelect
                                         value={newItem.kondisi}
-                                        onChange={(e) => setNewItem({ ...newItem, kondisi: e.target.value })}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-medium"
-                                    >
-                                        <option value="Bagus/Oke">Bagus / Oke</option>
-                                        <option value="Sedang Diperbaiki">Sedang Diperbaiki</option>
-                                        <option value="Rusak">Rusak</option>
-                                        <option value="Hilang">Hilang</option>
-                                    </select>
+                                        onChange={(val) => setNewItem({ ...newItem, kondisi: val })}
+                                        options={[
+                                            { value: 'Bagus/Oke', label: 'Bagus / Oke', colorDot: 'bg-emerald-500' },
+                                            { value: 'Sedang Diperbaiki', label: 'Sedang Diperbaiki', colorDot: 'bg-amber-500' },
+                                            { value: 'Rusak', label: 'Rusak', colorDot: 'bg-rose-500' },
+                                            { value: 'Hilang', label: 'Hilang', colorDot: 'bg-slate-400' },
+                                        ]}
+                                        placeholder="Pilih Kondisi"
+                                        fullWidth
+                                    />
                                 </div>
                             )}
 
@@ -622,14 +628,16 @@ export default function StockManagementPage({ initialTab = 'suvenir' }) {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block font-bold text-slate-700 mb-1">Aksi Penyesuaian</label>
-                                    <select
+                                    <CustomSelect
                                         value={adjustData.tipe}
-                                        onChange={(e) => setAdjustData({ ...adjustData, tipe: e.target.value })}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                                    >
-                                        <option value="Masuk">Stok Masuk (+)</option>
-                                        <option value="Keluar">Stok Keluar (-)</option>
-                                    </select>
+                                        onChange={(val) => setAdjustData({ ...adjustData, tipe: val })}
+                                        options={[
+                                            { value: 'Masuk', label: 'Stok Masuk (+)', colorDot: 'bg-emerald-500' },
+                                            { value: 'Keluar', label: 'Stok Keluar (-)', colorDot: 'bg-rose-500' },
+                                        ]}
+                                        placeholder="Pilih Aksi"
+                                        fullWidth
+                                    />
                                 </div>
                                 <div>
                                     <label className="block font-bold text-slate-700 mb-1">Jumlah</label>

@@ -6,6 +6,7 @@ import {
     ChevronDown, Check, ShieldAlert, Loader2, RefreshCw,
     Briefcase, AlertCircle, X
 } from 'lucide-react';
+import CustomSelect from '../components/CustomSelect';
 
 const SERVICES = [
     { code: 'D', name: 'Layanan Desain Grafis', color: 'indigo' },
@@ -357,7 +358,7 @@ export default function UserManagementPage() {
             </div>
 
             {/* User Table */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs">
                 <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
                     <div className="flex items-center space-x-2">
                         <Users className="w-4 h-4 text-slate-400" />
@@ -365,17 +366,19 @@ export default function UserManagementPage() {
                         <span className="text-xs text-slate-500">({filteredUsers.length} dari {users.length})</span>
                     </div>
                     <div className="ml-auto flex items-center space-x-2">
-                        <select
+                        <CustomSelect
                             value={filterRole}
-                            onChange={e => setFilterRole(e.target.value)}
-                            className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 outline-none"
-                        >
-                            <option value="">Semua Role</option>
-                            <option value="SuperAdmin">SuperAdmin</option>
-                            <option value="Admin">Admin</option>
-                            <option value="PIC">PIC</option>
-                            <option value="User">User</option>
-                        </select>
+                            onChange={val => setFilterRole(val)}
+                            options={[
+                                { value: '', label: 'Semua Role' },
+                                { value: 'SuperAdmin', label: 'SuperAdmin', colorDot: 'bg-violet-500' },
+                                { value: 'Admin', label: 'Admin', colorDot: 'bg-indigo-500' },
+                                { value: 'PIC', label: 'PIC', colorDot: 'bg-green-500' },
+                                { value: 'User', label: 'User', colorDot: 'bg-slate-400' },
+                            ]}
+                            placeholder="Filter Role"
+                            align="right"
+                        />
                     </div>
                 </div>
 

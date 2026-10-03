@@ -28,6 +28,7 @@ Route::prefix('v1')->group(function () {
     // 2. Master Layanan & Aturan Main
     Route::get('/services', [ServiceController::class, 'index']);
     Route::get('/services/{code}', [ServiceController::class, 'show']);
+    Route::put('/services/{code}', [ServiceController::class, 'update']);
     Route::put('/services/{code}/rules', [ServiceController::class, 'updateRules']);
 
     // 3. Modul Multimedia — Conflict Checking & Availability (PRD FR-MM-03)

@@ -47,6 +47,11 @@ class User extends Authenticatable
         return $this->role === 'SuperAdmin';
     }
 
+    public function hasAdminAccess(): bool
+    {
+        return in_array($this->role, ['Admin', 'SuperAdmin']);
+    }
+
     public function isPic(): bool
     {
         return $this->role === 'PIC';

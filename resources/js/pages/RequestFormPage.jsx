@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import SplitScreenLayout from '../components/SplitScreenLayout';
 import DateTimePicker from '../components/DateTimePicker';
 import FileUploader from '../components/FileUploader';
+import CustomSelect from '../components/CustomSelect';
 import api from '../services/api';
 import confetti from 'canvas-confetti';
 import { 
@@ -22,6 +23,7 @@ import {
     Gift,
     HelpCircle,
     Info,
+    Package,
     Plus,
     Trash2
 } from 'lucide-react';
@@ -35,6 +37,7 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
     const [successTicket, setSuccessTicket] = useState(null);
 
     // Common fields across all forms
+    const [namaPemohon, setNamaPemohon] = useState(user?.name || '');
     const [unitPemohon, setUnitPemohon] = useState(user?.unit_kerja || '');
     const [noWhatsappPemohon, setNoWhatsappPemohon] = useState('');
     const [namaKegiatan, setNamaKegiatan] = useState('');
@@ -65,6 +68,7 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
 
     // Specific [S] Alat Promosi states
     const [kategoriPromosi, setKategoriPromosi] = useState('Promosi Kampus');
+    const [kategoriPromosiLainnya, setKategoriPromosiLainnya] = useState('');
     const [tanggalDibutuhkanPromosi, setTanggalDibutuhkanPromosi] = useState('');
     const [souvenirItems, setSouvenirItems] = useState([
         { id: 'goodiebag', nama_item: 'Goodiebag', qty: 20, checked: true },
@@ -122,6 +126,13 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
         fetchService();
     }, [serviceCode]);
 
+    useEffect(() => {
+        if (user) {
+            if (!namaPemohon && user.name) setNamaPemohon(user.name);
+            if (!unitPemohon && user.unit_kerja) setUnitPemohon(user.unit_kerja);
+        }
+    }, [user]);
+
     // Calculate total requested souvenirs
     const totalSouvenirQty = souvenirItems.reduce((acc, curr) => {
         return curr.checked ? acc + (parseInt(curr.qty, 10) || 0) : acc;
@@ -148,6 +159,20 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
         e.preventDefault();
         setErrorMsg(null);
 
+        // Validasi identitas pemohon (umum untuk semua layanan)
+        if (!namaPemohon.trim()) {
+            setErrorMsg('Nama pemohon wajib diisi.');
+            return;
+        }
+        if (!unitPemohon.trim()) {
+            setErrorMsg('Program Studi / Unit Pemohon wajib diisi.');
+            return;
+        }
+        if (!noWhatsappPemohon.trim()) {
+            setErrorMsg('No. Whatsapp pemohon wajib diisi.');
+            return;
+        }
+
         // Validasi per layanan
         if (serviceCode === 'D') {
             if (jenisDesain.length === 0 && !jenisDesainLainnya.trim()) {
@@ -168,6 +193,10 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 return;
             }
         } else if (serviceCode === 'S') {
+            if (kategoriPromosi === 'Lainnya' && !kategoriPromosiLainnya.trim()) {
+                setErrorMsg('Mohon tuliskan rincian kategori kegiatan lainnya.');
+                return;
+            }
             if (totalSouvenirQty <= 0) {
                 setErrorMsg('Pilih minimal satu jenis suvenir dan masukkan jumlahnya (lebih dari 0).');
                 return;
@@ -196,10 +225,6 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
         } else if (serviceCode === 'L') {
             if (jenisPeliputan.length === 0) {
                 setErrorMsg('Pilih minimal satu jenis peliputan.');
-                return;
-            }
-            if (files.length === 0) {
-                setErrorMsg('Dokumen Undangan atau TOR kegiatan wajib diunggah.');
                 return;
             }
         }
@@ -261,13 +286,19 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 activeSouvenirs.push({ nama_item: suvenirLainnyaNama, qty: parseInt(suvenirLainnyaQty, 10) });
             }
 
+            const displayKategori = kategoriPromosi === 'Lainnya' && kategoriPromosiLainnya.trim()
+                ? `Lainnya (${kategoriPromosiLainnya.trim()})`
+                : kategoriPromosi;
+
             finalJudul = namaKegiatan ? `Alat Promosi: ${namaKegiatan}` : 'Permohonan Alat Promosi & Suvenir';
-            finalDeskripsi = `Kategori: ${kategoriPromosi}\nSouvenir: ${activeSouvenirs.map(s => `${s.nama_item} (${s.qty})`).join(', ')}`;
+            finalDeskripsi = `Kategori: ${displayKategori}\nSouvenir: ${activeSouvenirs.map(s => `${s.nama_item} (${s.qty})`).join(', ')}`;
             finalTanggalDibutuhkan = tanggalDibutuhkanPromosi;
             Object.assign(formDataPayload, {
                 unit_pemohon: unitPemohon,
                 no_whatsapp_pemohon: noWhatsappPemohon,
-                kategori_kegiatan: kategoriPromosi,
+                kategori_kegiatan: displayKategori,
+                kategori_promosi_pilihan: kategoriPromosi,
+                kategori_promosi_lainnya: kategoriPromosiLainnya.trim(),
                 nama_kegiatan: namaKegiatan,
                 tanggal_kegiatan: tanggalKegiatan,
                 waktu_kegiatan: waktuKegiatan,
@@ -314,6 +345,10 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 waktu_peliputan: waktuPeliputan,
             });
         }
+
+        formDataPayload.nama_pemohon = namaPemohon;
+        formDataPayload.unit_pemohon = unitPemohon;
+        formDataPayload.no_whatsapp_pemohon = noWhatsappPemohon;
 
         const data = new FormData();
         data.append('service_code', serviceCode);
@@ -438,7 +473,9 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
             <SplitScreenLayout service={service}>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="border-b border-slate-100 pb-4">
-                        <h2 className="text-lg font-black text-slate-900 tracking-tight">Formulir Pengajuan Resmi</h2>
+                        <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                            Formulir Pengajuan {service?.name || 'Layanan'}
+                        </h2>
                         <p className="text-xs text-slate-500 mt-1">
                             Sesuai standar operasional Humas Universitas YARSI. Lengkapi formulir di bawah ini dengan benar.
                         </p>
@@ -456,7 +493,20 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                         <div className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">
                             1. Identitas Unit Pemohon
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                            <div>
+                                <label className="block text-slate-600 font-bold mb-1">
+                                    Nama Pemohon <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={namaPemohon}
+                                    onChange={(e) => setNamaPemohon(e.target.value)}
+                                    placeholder="Nama lengkap pemohon"
+                                    required
+                                    className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
                             <div>
                                 <label className="block text-slate-600 font-bold mb-1">
                                     Program Studi / Unit Pemohon <span className="text-rose-500">*</span>
@@ -465,7 +515,7 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                     type="text"
                                     value={unitPemohon}
                                     onChange={(e) => setUnitPemohon(e.target.value)}
-                                    placeholder="Contoh: Prodi Kedokteran / Bagian Kemahasiswaan"
+                                    placeholder="Contoh: Biro Akademik & Kemahasiswaan"
                                     required
                                     className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500"
                                 />
@@ -872,7 +922,7 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                             key={kat}
                                             className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
                                                 kategoriPromosi === kat
-                                                    ? 'bg-amber-50 border-amber-500 text-amber-900 font-bold'
+                                                    ? 'bg-amber-50 border-amber-500 text-amber-900 font-bold shadow-xs'
                                                     : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                                             }`}
                                         >
@@ -887,6 +937,23 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                         </label>
                                     ))}
                                 </div>
+
+                                {/* Kolom Isian Khusus Opsi "Lainnya" */}
+                                {kategoriPromosi === 'Lainnya' && (
+                                    <div className="mt-2.5 p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5 animate-fadeIn">
+                                        <label className="block text-[11px] font-bold text-amber-900">
+                                            Rincian Kategori Kegiatan / Kebutuhan Lainnya <span className="text-rose-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={kategoriPromosiLainnya}
+                                            onChange={(e) => setKategoriPromosiLainnya(e.target.value)}
+                                            placeholder="Contoh: Kunjungan Studi Banding / Workshop Khusus..."
+                                            required={kategoriPromosi === 'Lainnya'}
+                                            className="w-full px-3 py-2 text-xs bg-white rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium placeholder:text-slate-400"
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Informasi Kegiatan */}
@@ -1045,24 +1112,22 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                     </div>
                                 </div>
 
-                                {/* Dynamic breakdown badge */}
-                                <div className="p-3 bg-white rounded-xl border border-amber-200 text-xs space-y-1">
-                                    <div className="flex justify-between items-center font-bold text-slate-800">
-                                        <span>Batas Otomatis Sistem:</span>
-                                        <span className="text-amber-700">{suvenirLimit} unit</span>
+                                {/* Ringkasan Total Permintaan Souvenir */}
+                                <div className="p-3 bg-white rounded-xl border border-amber-200 text-xs flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                        <Package className="w-4 h-4 text-amber-600" />
+                                        <span className="font-bold text-slate-800">Total Kebutuhan Suvenir:</span>
                                     </div>
-                                    <div className="border-t border-slate-100 pt-1.5 flex justify-between text-[11px]">
-                                        <span className="text-emerald-700 font-semibold">
-                                            ✓ Auto-Approve: <strong>{Math.min(totalSouvenirQty, suvenirLimit)} unit</strong>
-                                        </span>
-                                        {totalSouvenirQty > suvenirLimit ? (
-                                            <span className="text-amber-700 font-semibold">
-                                                ⏳ Menunggu Super Admin: <strong>{totalSouvenirQty - suvenirLimit} unit</strong>
-                                            </span>
-                                        ) : (
-                                            <span className="text-emerald-600 font-medium">Langsung Diproses</span>
-                                        )}
-                                    </div>
+                                    <span className="font-extrabold text-amber-900 bg-amber-100/70 px-2.5 py-0.5 rounded-lg border border-amber-300">
+                                        {totalSouvenirQty} unit
+                                    </span>
+                                </div>
+
+                                <div className="p-2.5 bg-amber-50/70 rounded-xl border border-amber-200 text-[11px] text-amber-900 flex items-start space-x-2">
+                                    <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                    <span>
+                                        Seluruh alokasi alat promosi & suvenir akan diverifikasi dan disetujui langsung oleh <strong>PIC Alat Promosi / Humas</strong> sesuai ketersediaan stok fisik di gudang.
+                                    </span>
                                 </div>
                             </div>
 
@@ -1225,18 +1290,20 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                         <label className="block text-[11px] font-bold text-slate-700 mb-1">
                                             Lokasi Produksi / Ruangan / Alat
                                         </label>
-                                        <select
+                                        <CustomSelect
                                             value={lokasiProduksiMm}
-                                            onChange={(e) => setLokasiProduksiMm(e.target.value)}
-                                            className="w-full text-xs px-3 py-2 bg-white rounded-xl border border-slate-300"
-                                        >
-                                            <option value="Studio Podcast 1 (Lantai 2)">Studio Podcast 1 (Lantai 2)</option>
-                                            <option value="Studio Podcast 2 (Lantai 3)">Studio Podcast 2 (Lantai 3)</option>
-                                            <option value="Paket Kamera Video Sony Cinema & Wireless Mic">Paket Kamera Video Sony Cinema & Wireless Mic</option>
-                                            <option value="Set Lighting Studio & Green Screen">Set Lighting Studio & Green Screen</option>
-                                            <option value="Proyektor 5000 Lumens & Portable Screen">Proyektor 5000 Lumens & Portable Screen</option>
-                                            <option value="Lokasi Eksternal / Lapangan Kampus">Lokasi Eksternal / Lapangan Kampus</option>
-                                        </select>
+                                            onChange={(val) => setLokasiProduksiMm(val)}
+                                            options={[
+                                                { value: 'Studio Podcast 1 (Lantai 2)', label: 'Studio Podcast 1 (Lantai 2)' },
+                                                { value: 'Studio Podcast 2 (Lantai 3)', label: 'Studio Podcast 2 (Lantai 3)' },
+                                                { value: 'Paket Kamera Video Sony Cinema & Wireless Mic', label: 'Paket Kamera Video Sony Cinema & Wireless Mic' },
+                                                { value: 'Set Lighting Studio & Green Screen', label: 'Set Lighting Studio & Green Screen' },
+                                                { value: 'Proyektor 5000 Lumens & Portable Screen', label: 'Proyektor 5000 Lumens & Portable Screen' },
+                                                { value: 'Lokasi Eksternal / Lapangan Kampus', label: 'Lokasi Eksternal / Lapangan Kampus' },
+                                            ]}
+                                            placeholder="Pilih Lokasi / Ruangan / Alat"
+                                            fullWidth
+                                        />
                                     </div>
                                 </div>
 
@@ -1396,22 +1463,28 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                             <label className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
                                 <FileText className="w-4 h-4 text-indigo-600" />
                                 <span>
-                                    Unggah Berkas Pendukung & Surat Permohonan{' '}
-                                    {['S', 'M', 'L'].includes(serviceCode) && (
-                                        <span className="text-rose-500">*Wajib Surat Pimpinan</span>
+                                    {['S', 'M'].includes(serviceCode) ? (
+                                        <>
+                                            Unggah Berkas Pendukung & Surat Permohonan{' '}
+                                            <span className="text-rose-500 font-bold">*Wajib Surat Pimpinan</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            Unggah Berkas Pendukung{' '}
+                                            <span className="text-slate-400 font-normal">(Opsional)</span>
+                                        </>
                                     )}
                                 </span>
                             </label>
                             <span className="text-[10px] text-slate-400">PDF, JPG, PNG, DOCX (Maks 10MB)</span>
                         </div>
-                        {['S', 'M'].includes(serviceCode) && (
+                        {['S', 'M'].includes(serviceCode) ? (
                             <p className="text-[11px] text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
                                 <strong>Catatan:</strong> Wajib menyertakan <strong>Surat Permohonan resmi dari Pimpinan Unit Kerja</strong> (Dekan / Kepala Biro / Direktur) sesuai Syarat & Ketentuan.
                             </p>
-                        )}
-                        {serviceCode === 'L' && (
-                            <p className="text-[11px] text-rose-700 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
-                                <strong>Catatan:</strong> Wajib melampirkan <strong>Undangan Resmi / TOR Kegiatan</strong> untuk penugasan tim peliput.
+                        ) : (
+                            <p className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                                <strong>Catatan:</strong> Lampiran berkas bersifat opsional. Anda dapat menyertakan dokumen pendukung seperti draf materi, referensi desain, rundown acara, atau dokumen terkait jika ada.
                             </p>
                         )}
                         <FileUploader files={files} setFiles={setFiles} />

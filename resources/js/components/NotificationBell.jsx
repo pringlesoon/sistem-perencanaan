@@ -158,7 +158,7 @@ export default function NotificationBell({ onOpenPermohonan, placement = 'sideba
                         </div>
                     </div>
 
-                    <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                    <div className="max-h-80 overflow-y-auto custom-scrollbar divide-y divide-slate-100">
                         {notifications.length === 0 ? (
                             <div className="py-8 text-center text-slate-400 text-xs">
                                 Belum ada notifikasi

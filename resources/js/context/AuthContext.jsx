@@ -10,7 +10,7 @@ const enrichUser = (userData) => {
     if (!userData) return null;
     return {
         ...userData,
-        isAdmin: () => userData.role === 'Admin',
+        isAdmin: () => ['Admin', 'SuperAdmin'].includes(userData.role),
         isSuperAdmin: () => userData.role === 'SuperAdmin',
         isPic: () => userData.role === 'PIC',
         isUser: () => userData.role === 'User',
