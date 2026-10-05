@@ -41,7 +41,11 @@ import {
     Camera,
     ArrowUpDown,
     ArrowUp,
-    ArrowDown
+    ArrowDown,
+    Phone,
+    MapPin,
+    User,
+    Tag
 } from 'lucide-react';
 
 // --- Service definitions ---
@@ -135,6 +139,38 @@ const statusBadgeStyles = {
 };
 
 function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDragEnd }) {
+    const formData = (typeof req.form_data === 'string')
+        ? (() => { try { return JSON.parse(req.form_data); } catch { return {}; } })()
+        : (req.form_data || {});
+
+    const serviceCode = req.service?.code || (req.kategori === 'Desain' ? 'D' : req.kategori === 'Publikasi' ? 'P' : req.kategori === 'Suvenir' ? 'S' : req.kategori === 'Multimedia' ? 'M' : req.kategori === 'Liputan' ? 'L' : null);
+
+    let summaryTag = null;
+    if (serviceCode === 'S') {
+        const totalSouvenir = Array.isArray(formData.souvenir_items)
+            ? formData.souvenir_items.reduce((acc, curr) => acc + (parseInt(curr.qty, 10) || 0), 0)
+            : (req.suvenir_detail?.qty_diminta || 0);
+        summaryTag = totalSouvenir > 0 ? `${totalSouvenir} Unit Suvenir` : (formData.kategori_kegiatan || null);
+    } else if (serviceCode === 'D') {
+        summaryTag = Array.isArray(formData.jenis_desain) && formData.jenis_desain.length > 0
+            ? formData.jenis_desain[0] + (formData.jenis_desain.length > 1 ? ` +${formData.jenis_desain.length - 1}` : '')
+            : (formData.ukuran_desain || null);
+    } else if (serviceCode === 'P') {
+        summaryTag = Array.isArray(formData.media_publikasi) && formData.media_publikasi.length > 0
+            ? formData.media_publikasi[0]
+            : (formData.tanggal_publikasi ? `Tayang: ${formData.tanggal_publikasi}` : null);
+    } else if (serviceCode === 'M') {
+        summaryTag = Array.isArray(formData.jenis_kebutuhan) && formData.jenis_kebutuhan.length > 0
+            ? formData.jenis_kebutuhan[0]
+            : (formData.lokasi_produksi || null);
+    } else if (serviceCode === 'L') {
+        summaryTag = Array.isArray(formData.jenis_peliputan) && formData.jenis_peliputan.length > 0
+            ? formData.jenis_peliputan[0]
+            : null;
+    }
+
+    const eventDate = formData.tanggal_kegiatan || formData.tanggal_dibutuhkan || req.tanggal_dibutuhkan || formData.deadline || formData.tanggal_publikasi || formData.tanggal_produksi;
+
     return (
         <div
             draggable={isDraggable}
@@ -159,14 +195,20 @@ function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDra
                 </span>
             </div>
 
-            <h4 className="text-xs font-bold text-slate-800 leading-snug line-clamp-2 mb-2">
+            <h4 className="text-xs font-bold text-slate-800 leading-snug line-clamp-2 mb-1.5">
                 {req.judul_permohonan}
             </h4>
 
+            {/* Badges Info Keterangan Form */}
             <div className="flex flex-wrap items-center gap-1.5 mb-2">
                 <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">
                     {req.service?.name || req.kategori || 'Layanan'}
                 </span>
+                {summaryTag && (
+                    <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/90 border border-slate-200 text-indigo-700 truncate max-w-[150px]">
+                        {summaryTag}
+                    </span>
+                )}
                 {req.status !== column.key && (
                     <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ${statusBadgeStyles[req.status] || 'bg-slate-50 border-slate-200 text-slate-700'}`}>
                         {req.status}
@@ -174,15 +216,26 @@ function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDra
                 )}
             </div>
 
+            {/* Tanggal Pelaksanaan / Dibutuhkan jika ada */}
+            {eventDate && (
+                <div className="flex items-center space-x-1 text-[10px] text-slate-500 font-medium mb-2 bg-white/70 px-2 py-1 rounded-md border border-slate-100">
+                    <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span className="truncate">Target/Acara: {eventDate}</span>
+                </div>
+            )}
+
             <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
                 <div className="flex items-center space-x-1.5 min-w-0">
                     <div className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-[9px] font-bold shrink-0">
-                        {req.user?.name?.charAt(0) || '?'}
+                        {(formData.nama_pemohon || req.user?.name)?.charAt(0) || '?'}
                     </div>
-                    <span className="text-[10px] text-slate-600 font-medium truncate">{req.user?.name}</span>
+                    <div className="min-w-0">
+                        <span className="text-[10px] text-slate-700 font-bold truncate block">{formData.nama_pemohon || req.user?.name}</span>
+                        <span className="text-[9px] text-slate-400 truncate block">{formData.unit_pemohon || req.user?.unit_kerja || 'Unit Kerja'}</span>
+                    </div>
                 </div>
                 {req.calculated_lead_time && (
-                    <div className="flex items-center space-x-0.5 text-[10px] text-slate-500">
+                    <div className="flex items-center space-x-0.5 text-[10px] text-slate-500 shrink-0 ml-1">
                         <Clock className="w-3 h-3" />
                         <span>{req.calculated_lead_time}</span>
                     </div>
@@ -220,11 +273,22 @@ function RequestFormDetail({ detail }) {
         ? (() => { try { return JSON.parse(detail.form_data); } catch { return {}; } })()
         : (detail.form_data || {});
 
+    const cleanWaNumber = (phone) => phone ? phone.replace(/[^0-9]/g, '') : null;
+    const waLink = (phone) => {
+        const num = cleanWaNumber(phone);
+        if (!num) return null;
+        const normalized = num.startsWith('0') ? '62' + num.slice(1) : num;
+        return `https://wa.me/${normalized}`;
+    };
+
     return (
         <div className="space-y-4">
-            {/* Common default fields: No. Tiket, Tanggal, Jam, Layanan, Judul, Pemohon, Status */}
+            {/* 1. INFORMASI UTAMA & STATUS TIKET */}
             <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Informasi Utama Permohonan</p>
+                <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Informasi Utama Permohonan</p>
+                    <span className="font-mono text-xs font-bold text-slate-400">ID #{detail.id}</span>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 text-xs">
                     <div>
                         <p className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">No. Tiket</p>
@@ -235,7 +299,7 @@ function RequestFormDetail({ detail }) {
                         <p className="font-extrabold text-slate-800 text-xs mt-0.5">{getFullServiceName(detail)}</p>
                     </div>
                     <div>
-                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Status</p>
+                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Status Permohonan</p>
                         <div className="mt-0.5">
                             <span className={`inline-block px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${statusBadgeStyles[detail.status] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>
                                 {detail.status}
@@ -243,47 +307,214 @@ function RequestFormDetail({ detail }) {
                         </div>
                     </div>
                     <div>
-                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Tanggal Pengajuan</p>
+                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Tanggal & Waktu Pengajuan</p>
                         <p className="font-semibold text-slate-700 mt-0.5">
                             {new Date(detail.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
+                            <span className="text-[11px] text-slate-400 block font-normal">
+                                Pukul {new Date(detail.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                            </span>
                         </p>
                     </div>
                     <div>
-                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Jam Pengajuan</p>
+                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Target / Tanggal Dibutuhkan</p>
+                        <p className="font-bold text-slate-800 mt-0.5">
+                            {formData?.tanggal_dibutuhkan || detail.tanggal_dibutuhkan || formData?.deadline || formData?.tanggal_publikasi || formData?.tanggal_produksi || '-'}
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Lead Time Proses</p>
                         <p className="font-semibold text-slate-700 mt-0.5">
-                            {new Date(detail.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                            {detail.calculated_lead_time || '-'}
                         </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* 2. IDENTITAS PEMOHON LENGKAP */}
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">1. Identitas Unit Pemohon</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
+                    <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama Lengkap Pemohon</span>
+                        <span className="font-extrabold text-slate-900 text-xs">
+                            {formData?.nama_pemohon || detail.user?.name || '-'}
+                        </span>
                     </div>
                     <div>
-                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Pemohon</p>
-                        <p className="font-semibold text-slate-800 mt-0.5">
-                            {formData?.nama_pemohon || detail.user?.name}
-                            <span className="block text-[10px] text-slate-400 font-normal">{formData?.unit_pemohon || detail.user?.unit_kerja || 'Unit Kerja YARSI'}</span>
-                        </p>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Program Studi / Unit Kerja</span>
+                        <span className="font-semibold text-slate-800 text-xs">
+                            {formData?.unit_pemohon || detail.user?.unit_kerja || '-'}
+                        </span>
+                    </div>
+                    <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">No. WhatsApp Pemohon</span>
+                        {formData?.no_whatsapp_pemohon ? (
+                            <a
+                                href={waLink(formData.no_whatsapp_pemohon)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center space-x-1 font-bold text-emerald-700 hover:text-emerald-800 hover:underline mt-0.5"
+                                title="Buka WhatsApp pemohon"
+                            >
+                                <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>{formData.no_whatsapp_pemohon}</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                            </a>
+                        ) : (
+                            <span className="text-slate-400 font-medium">-</span>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Judul & Deskripsi Kebutuhan */}
-            <div className="space-y-2">
-                <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Judul Permohonan</p>
-                    <p className="text-sm font-bold text-slate-900 bg-white p-3 rounded-xl border border-slate-200">{detail.judul_permohonan}</p>
-                </div>
-                <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Deskripsi / Spesifikasi Kebutuhan</p>
-                    <p className="text-xs text-slate-700 bg-white p-3.5 rounded-xl border border-slate-200 leading-relaxed whitespace-pre-wrap">
-                        {detail.deskripsi_kebutuhan}
-                    </p>
-                </div>
-            </div>
+            {/* 3. RINCIAN SPESIFIK SESUAI FORMULIR LAYANAN */}
+            {/* ------------------------------------------------------------- */}
+            {/* A. LAYANAN ALAT PROMOSI & SUVENIR [S]                          */}
+            {/* ------------------------------------------------------------- */}
+            {serviceCode === 'S' && (
+                <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200 text-xs space-y-4">
+                    <div className="flex items-center justify-between border-b border-amber-200/60 pb-2.5">
+                        <h4 className="font-black text-amber-950 flex items-center space-x-2 text-xs">
+                            <Gift className="w-4 h-4 text-amber-600" />
+                            <span>Rincian Pengajuan Alat Promosi & Suvenir</span>
+                        </h4>
+                        {formData?.kategori_kegiatan && (
+                            <span className="px-2.5 py-0.5 bg-amber-100 border border-amber-300 text-amber-900 rounded-full text-[10px] font-black">
+                                Kategori: {formData.kategori_kegiatan}
+                            </span>
+                        )}
+                    </div>
 
-            {/* Rincian Spesifik Sesuai Formulir Masing-Masing Layanan */}
-            {/* 1. Layanan Multimedia (M) */}
+                    {/* Informasi Kegiatan / Program */}
+                    <div className="space-y-1.5">
+                        <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wider">Informasi Kegiatan / Program</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-white p-3.5 rounded-xl border border-amber-200 text-slate-700">
+                            <div className="sm:col-span-2">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama Kegiatan / Program</span>
+                                <span className="font-extrabold text-slate-900 text-xs">{formData?.nama_kegiatan || detail.judul_permohonan || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Tanggal Kegiatan</span>
+                                <span className="font-semibold text-slate-800">{formData?.tanggal_kegiatan || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Waktu Kegiatan</span>
+                                <span className="font-semibold text-slate-800">{formData?.waktu_kegiatan ? `${formData.waktu_kegiatan} WIB` : '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Lokasi Kegiatan</span>
+                                <span className="font-semibold text-slate-800">{formData?.lokasi_kegiatan || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Tanggal Suvenir Dibutuhkan</span>
+                                <span className="font-bold text-amber-900">{formData?.tanggal_dibutuhkan || detail.tanggal_dibutuhkan || '-'}</span>
+                            </div>
+                            <div className="sm:col-span-2 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama PIC Kegiatan</span>
+                                    <span className="font-bold text-slate-900">{formData?.nama_pic_kegiatan || '-'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase block">No. WhatsApp PIC Kegiatan</span>
+                                    {formData?.no_whatsapp_pic ? (
+                                        <a href={waLink(formData.no_whatsapp_pic)} target="_blank" rel="noreferrer" className="inline-flex items-center space-x-1 font-bold text-emerald-700 hover:underline">
+                                            <Phone className="w-3 h-3 text-emerald-600" />
+                                            <span>{formData.no_whatsapp_pic}</span>
+                                        </a>
+                                    ) : (
+                                        <span className="text-slate-400">-</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Keperluan Souvenir (Jenis & Qty) */}
+                    <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                            <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wider">Keperluan Souvenir yang Diajukan</p>
+                            <span className="px-2 py-0.5 bg-amber-200 text-amber-950 font-black text-[10px] rounded-lg">
+                                Total: {Array.isArray(formData?.souvenir_items) ? formData.souvenir_items.reduce((acc, curr) => acc + (parseInt(curr.qty, 10) || 0), 0) : (detail.suvenir_detail?.qty_diminta || 0)} Unit
+                            </span>
+                        </div>
+
+                        {Array.isArray(formData?.souvenir_items) && formData.souvenir_items.length > 0 ? (
+                            <div className="bg-white rounded-xl border border-amber-200 overflow-hidden shadow-2xs">
+                                <table className="w-full text-left text-xs">
+                                    <thead className="bg-amber-100/70 text-amber-900 font-bold border-b border-amber-200 text-[11px]">
+                                        <tr>
+                                            <th className="px-3 py-2">No</th>
+                                            <th className="px-3 py-2">Nama Item Suvenir</th>
+                                            <th className="px-3 py-2 text-right">Jumlah Unit</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {formData.souvenir_items.map((it, idx) => (
+                                            <tr key={idx} className="hover:bg-amber-50/40">
+                                                <td className="px-3 py-2 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                                                <td className="px-3 py-2 font-bold text-slate-800">{it.nama_item}</td>
+                                                <td className="px-3 py-2 text-right font-mono font-black text-amber-900">
+                                                    {it.qty} unit
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            detail.suvenir_detail && (
+                                <div className="bg-white p-3 rounded-xl border border-amber-100 flex items-center justify-between">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama Item Suvenir</span>
+                                        <span className="font-black text-slate-900 text-sm">{detail.suvenir_detail.nama_item || 'Suvenir Kampus'}</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="font-mono font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                                            {detail.suvenir_detail.qty_diminta} unit
+                                        </span>
+                                    </div>
+                                </div>
+                            )
+                        )}
+                    </div>
+
+                    {/* Status Approval Kuota Suvenir */}
+                    {detail.suvenir_detail && (
+                        <div className="space-y-1.5 pt-1">
+                            <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wider">Status Persetujuan Kuota Suvenir</p>
+                            <div className="grid grid-cols-2 gap-2 text-center">
+                                <div className="p-2.5 bg-white rounded-xl border border-amber-200">
+                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Total Diminta</p>
+                                    <p className="text-base font-black text-slate-900 mt-0.5">{detail.suvenir_detail.qty_diminta} unit</p>
+                                </div>
+                                <div className="p-2.5 bg-white rounded-xl border border-amber-200">
+                                    <p className="text-[10px] text-amber-800 font-bold uppercase">Status Persetujuan</p>
+                                    <p className="text-xs font-black text-amber-900 mt-1">
+                                        {detail.suvenir_detail.status_approval === 'Disetujui' ? `${detail.suvenir_detail.qty_diminta} unit (Disetujui Penuh)` :
+                                            detail.suvenir_detail.status_approval === 'Disetujui Sebagian' ? `${detail.suvenir_detail.qty_disetujui_otomatis} unit (Disetujui Sebagian)` :
+                                                detail.suvenir_detail.status_approval === 'Ditolak' ? 'Ditolak' :
+                                                    'Menunggu Verifikasi PIC'}
+                                    </p>
+                                </div>
+                            </div>
+                            {detail.suvenir_detail?.catatan_approver && (
+                                <div className="p-3 bg-white rounded-xl border border-amber-200 text-[11px] text-slate-700">
+                                    <span className="font-bold text-amber-900 block mb-0.5">Catatan Persetujuan PIC / Approver:</span>
+                                    <span>{detail.suvenir_detail.catatan_approver}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
+            {/* B. LAYANAN MULTIMEDIA, DOKUMENTASI, & PODCAST [M]             */}
+            {/* ------------------------------------------------------------- */}
             {serviceCode === 'M' && (
                 <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200 text-xs space-y-3">
-                    <div className="flex items-center justify-between">
-                        <h4 className="font-extrabold text-emerald-950 flex items-center space-x-1.5 text-xs">
+                    <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
+                        <h4 className="font-black text-emerald-950 flex items-center space-x-1.5 text-xs">
                             <Video className="w-4 h-4 text-emerald-600" />
                             <span>Rincian Pengajuan Layanan Multimedia</span>
                         </h4>
@@ -299,6 +530,10 @@ function RequestFormDetail({ detail }) {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3.5 rounded-xl border border-emerald-100 text-slate-700">
+                        <div className="sm:col-span-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama Kegiatan / Program</span>
+                            <span className="font-extrabold text-slate-900 text-xs">{formData?.nama_kegiatan || detail.judul_permohonan || '-'}</span>
+                        </div>
                         <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase block">Tanggal Produksi / Pelaksanaan</span>
                             <span className="font-bold text-slate-900">
@@ -335,102 +570,36 @@ function RequestFormDetail({ detail }) {
                                 <p className="text-xs text-slate-700 whitespace-pre-wrap">{formData.konsep_konten}</p>
                             </div>
                         )}
-                        {formData?.nama_pic_kegiatan && (
-                            <div className="sm:col-span-2 text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-                                PIC Lapangan: <strong>{formData.nama_pic_kegiatan}</strong> (WA: {formData.no_whatsapp_pic || '-'})
+                        {formData?.link_drive && (
+                            <div className="sm:col-span-2">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Link Materi Pendukung (Google Drive)</span>
+                                <a href={formData.link_drive} target="_blank" rel="noreferrer" className="text-emerald-700 font-bold underline truncate block">
+                                    {formData.link_drive}
+                                </a>
+                            </div>
+                        )}
+                        {(formData?.nama_pic_kegiatan || formData?.no_whatsapp_pic) && (
+                            <div className="sm:col-span-2 text-[11px] text-slate-600 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                                <span>PIC Lapangan: <strong>{formData.nama_pic_kegiatan || '-'}</strong></span>
+                                {formData.no_whatsapp_pic && (
+                                    <a href={waLink(formData.no_whatsapp_pic)} target="_blank" rel="noreferrer" className="text-emerald-700 font-bold hover:underline inline-flex items-center space-x-1">
+                                        <Phone className="w-3 h-3 text-emerald-600" />
+                                        <span>WA: {formData.no_whatsapp_pic}</span>
+                                    </a>
+                                )}
                             </div>
                         )}
                     </div>
                 </div>
             )}
 
-            {/* 2. Layanan Permohonan Alat Promosi / Suvenir (S) */}
-            {serviceCode === 'S' && (
-                <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200 text-xs space-y-3">
-                    <div className="flex items-center justify-between">
-                        <h4 className="font-extrabold text-amber-950 flex items-center space-x-1.5 text-xs">
-                            <Gift className="w-4 h-4 text-amber-600" />
-                            <span>Rincian Pengajuan Alat Promosi & Suvenir</span>
-                        </h4>
-                        {formData?.kategori_kegiatan && (
-                            <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[10px] font-black">
-                                Kategori: {formData.kategori_kegiatan}
-                            </span>
-                        )}
-                    </div>
-
-                    {/* Tabel Daftar Souvenir yang Diajukan */}
-                    {Array.isArray(formData?.souvenir_items) && formData.souvenir_items.length > 0 ? (
-                        <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
-                            <div className="px-3 py-2 bg-amber-100/60 font-bold text-[11px] text-amber-900 flex justify-between">
-                                <span>Daftar Item Suvenir yang Diajukan</span>
-                                <span>Jumlah</span>
-                            </div>
-                            <div className="divide-y divide-slate-100">
-                                {formData.souvenir_items.map((it, idx) => (
-                                    <div key={idx} className="px-3 py-2 flex items-center justify-between text-xs">
-                                        <span className="font-bold text-slate-800">{it.nama_item}</span>
-                                        <span className="font-mono font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                                            {it.qty} unit
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
-                        detail.suvenir_detail && (
-                            <div className="bg-white p-3 rounded-xl border border-amber-100 flex items-center justify-between">
-                                <div>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama Item Suvenir</span>
-                                    <span className="font-black text-slate-900 text-sm">{detail.suvenir_detail.nama_item || 'Suvenir Kampus'}</span>
-                                </div>
-                                <div className="text-right">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Status Otorisasi</span>
-                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${detail.suvenir_detail.status_approval === 'Disetujui' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                        detail.suvenir_detail.status_approval === 'Disetujui Sebagian' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                            detail.suvenir_detail.status_approval === 'Ditolak' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                                'bg-purple-50 text-purple-700 border-purple-200'
-                                        }`}>
-                                        {detail.suvenir_detail.status_approval}
-                                    </span>
-                                </div>
-                            </div>
-                        )
-                    )}
-
-                    {/* Kuota Approval Breakdown */}
-                    {detail.suvenir_detail && (
-                        <div className="grid grid-cols-2 gap-2 text-center">
-                            <div className="p-2.5 bg-white rounded-xl border border-amber-200">
-                                <p className="text-[10px] text-slate-500 font-bold uppercase">Total Diminta</p>
-                                <p className="text-base font-black text-slate-900 mt-0.5">{detail.suvenir_detail.qty_diminta} unit</p>
-                            </div>
-                            <div className="p-2.5 bg-white rounded-xl border border-amber-200">
-                                <p className="text-[10px] text-amber-800 font-bold uppercase">Status Persetujuan</p>
-                                <p className="text-xs font-black text-amber-900 mt-1">
-                                    {detail.suvenir_detail.status_approval === 'Disetujui' ? `${detail.suvenir_detail.qty_diminta} unit (Disetujui Penuh)` :
-                                        detail.suvenir_detail.status_approval === 'Disetujui Sebagian' ? `${detail.suvenir_detail.qty_disetujui_otomatis} unit (Disetujui Sebagian)` :
-                                            detail.suvenir_detail.status_approval === 'Ditolak' ? 'Ditolak' :
-                                                'Menunggu Verifikasi PIC'}
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-                    {detail.suvenir_detail?.catatan_approver && (
-                        <div className="p-3 bg-white rounded-xl border border-amber-200 text-[11px] text-slate-700">
-                            <span className="font-bold text-amber-900 block mb-0.5">Catatan Persetujuan PIC / Approver:</span>
-                            <span>{detail.suvenir_detail.catatan_approver}</span>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* 3. Layanan Publikasi Website & Social Media (P) */}
+            {/* ------------------------------------------------------------- */}
+            {/* C. LAYANAN PUBLIKASI WEBSITE & SOCIAL MEDIA [P]               */}
+            {/* ------------------------------------------------------------- */}
             {serviceCode === 'P' && (
                 <div className="p-4 bg-sky-50/70 rounded-2xl border border-sky-200 text-xs space-y-3">
-                    <div className="flex items-center justify-between">
-                        <h4 className="font-extrabold text-sky-950 flex items-center space-x-1.5 text-xs">
+                    <div className="flex items-center justify-between border-b border-sky-200/60 pb-2">
+                        <h4 className="font-black text-sky-950 flex items-center space-x-1.5 text-xs">
                             <Megaphone className="w-4 h-4 text-sky-600" />
                             <span>Rincian Pengajuan Publikasi Medsos & Website</span>
                         </h4>
@@ -441,7 +610,12 @@ function RequestFormDetail({ detail }) {
                         )}
                     </div>
 
-                    <div className="bg-white p-3.5 rounded-xl border border-sky-100 space-y-2.5 text-slate-700">
+                    <div className="bg-white p-3.5 rounded-xl border border-sky-100 space-y-3 text-slate-700">
+                        <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama Kegiatan</span>
+                            <span className="font-extrabold text-slate-900 text-xs">{formData?.nama_kegiatan || detail.judul_permohonan || '-'}</span>
+                        </div>
+
                         {Array.isArray(formData?.media_publikasi) && formData.media_publikasi.length > 0 && (
                             <div>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Kanal Media Publikasi</span>
@@ -471,7 +645,7 @@ function RequestFormDetail({ detail }) {
                             )}
                             {formData?.link_drive && (
                                 <div>
-                                    <span className="text-slate-400 block font-bold uppercase text-[10px]">Link Google Drive:</span>
+                                    <span className="text-slate-400 block font-bold uppercase text-[10px]">Link Google Drive Materi:</span>
                                     <a href={formData.link_drive} target="_blank" rel="noreferrer" className="text-indigo-600 font-bold underline truncate block">
                                         {formData.link_drive}
                                     </a>
@@ -479,18 +653,28 @@ function RequestFormDetail({ detail }) {
                             )}
                         </div>
 
-                        <div className="p-2.5 bg-sky-50/60 rounded-lg text-[11px] text-sky-900 border border-sky-100">
-                            ℹ️ <strong>Alur Penanganan Publikasi:</strong> Diajukan ➔ Pemeriksaan Konten ➔ Publikasi ➔ Selesai
-                        </div>
+                        {(formData?.nama_pic_publikasi || formData?.kontak_pic_publikasi) && (
+                            <div className="text-[11px] text-slate-600 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                                <span>PIC Pengaju Publikasi: <strong>{formData.nama_pic_publikasi || '-'}</strong></span>
+                                {formData.kontak_pic_publikasi && (
+                                    <a href={waLink(formData.kontak_pic_publikasi)} target="_blank" rel="noreferrer" className="text-sky-700 font-bold hover:underline inline-flex items-center space-x-1">
+                                        <Phone className="w-3 h-3 text-sky-600" />
+                                        <span>WA: {formData.kontak_pic_publikasi}</span>
+                                    </a>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* 4. Layanan Desain Grafis (D) */}
+            {/* ------------------------------------------------------------- */}
+            {/* D. LAYANAN DESAIN GRAFIS [D]                                  */}
+            {/* ------------------------------------------------------------- */}
             {serviceCode === 'D' && (
                 <div className="p-4 bg-indigo-50/70 rounded-2xl border border-indigo-200 text-xs space-y-3">
-                    <div className="flex items-center justify-between">
-                        <h4 className="font-extrabold text-indigo-950 flex items-center space-x-1.5 text-xs">
+                    <div className="flex items-center justify-between border-b border-indigo-200/60 pb-2">
+                        <h4 className="font-black text-indigo-950 flex items-center space-x-1.5 text-xs">
                             <Palette className="w-4 h-4 text-indigo-600" />
                             <span>Rincian Pengajuan Desain Grafis</span>
                         </h4>
@@ -502,6 +686,11 @@ function RequestFormDetail({ detail }) {
                     </div>
 
                     <div className="bg-white p-3.5 rounded-xl border border-indigo-100 space-y-3 text-slate-700">
+                        <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama Kegiatan / Tema</span>
+                            <span className="font-extrabold text-slate-900 text-xs">{formData?.judul_tema || formData?.nama_kegiatan || detail.judul_permohonan || '-'}</span>
+                        </div>
+
                         {Array.isArray(formData?.jenis_desain) && formData.jenis_desain.length > 0 && (
                             <div>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Jenis Desain yang Diminta</span>
@@ -548,18 +737,28 @@ function RequestFormDetail({ detail }) {
                             </div>
                         )}
 
-                        <div className="p-2.5 bg-indigo-50/60 rounded-lg text-[11px] text-indigo-900 leading-relaxed border border-indigo-100">
-                            ℹ️ <strong>Alur Penanganan Desain:</strong> Diajukan ➔ Diproses ➔ Direvisi ➔ Selesai. Persetujuan akhir dilakukan di luar sistem (misal WhatsApp/Email review), dan PIC cukup menandai status <strong>'Selesai'</strong> di sistem ini.
-                        </div>
+                        {(formData?.nama_pic_kegiatan || formData?.no_whatsapp_pic) && (
+                            <div className="text-[11px] text-slate-600 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                                <span>PIC Pengaju: <strong>{formData.nama_pic_kegiatan || '-'}</strong></span>
+                                {formData.no_whatsapp_pic && (
+                                    <a href={waLink(formData.no_whatsapp_pic)} target="_blank" rel="noreferrer" className="text-indigo-700 font-bold hover:underline inline-flex items-center space-x-1">
+                                        <Phone className="w-3 h-3 text-indigo-600" />
+                                        <span>WA: {formData.no_whatsapp_pic}</span>
+                                    </a>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* 5. Layanan Liputan & Berita (L) */}
+            {/* ------------------------------------------------------------- */}
+            {/* E. LAYANAN PELIPUTAN & BERITA [L]                             */}
+            {/* ------------------------------------------------------------- */}
             {serviceCode === 'L' && (
                 <div className="p-4 bg-rose-50/70 rounded-2xl border border-rose-200 text-xs space-y-3">
-                    <div className="flex items-center justify-between">
-                        <h4 className="font-extrabold text-rose-950 flex items-center space-x-1.5 text-xs">
+                    <div className="flex items-center justify-between border-b border-rose-200/60 pb-2">
+                        <h4 className="font-black text-rose-950 flex items-center space-x-1.5 text-xs">
                             <Camera className="w-4 h-4 text-rose-600" />
                             <span>Rincian Pengajuan Peliputan & Berita</span>
                         </h4>
@@ -575,6 +774,11 @@ function RequestFormDetail({ detail }) {
                     </div>
 
                     <div className="bg-white p-3.5 rounded-xl border border-rose-100 space-y-2.5 text-slate-700">
+                        <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama Kegiatan</span>
+                            <span className="font-extrabold text-slate-900 text-xs">{formData?.nama_kegiatan || detail.judul_permohonan || '-'}</span>
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                             <div>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Waktu Peliputan</span>
@@ -596,11 +800,17 @@ function RequestFormDetail({ detail }) {
                                 <p className="text-xs text-slate-800 whitespace-pre-wrap">{formData.rundown_acara}</p>
                             </div>
                         )}
-
-                        <p className="text-[11px] text-slate-600">
-                            <strong>Alur Penanganan:</strong> Diajukan ➔ Diproses (Penugasan Fotografer/Jurnalis) ➔ Selesai (Penyerahan Dokumentasi & Berita)
-                        </p>
                     </div>
+                </div>
+            )}
+
+            {/* 4. DESKRIPSI & SPESIFIKASI TAMBAHAN */}
+            {detail.deskripsi_kebutuhan && (
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Ringkasan / Catatan Deskripsi Permohonan</p>
+                    <p className="text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
+                        {detail.deskripsi_kebutuhan}
+                    </p>
                 </div>
             )}
         </div>
@@ -1067,31 +1277,53 @@ export default function TrackingPage({ defaultSelectedId }) {
                                         <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
                                         <p className="text-xs font-medium">Tidak ada permohonan yang sesuai filter</p>
                                     </td></tr>
-                                ) : processedRequests.map(req => (
-                                    <tr
-                                        key={req.id}
-                                        className="hover:bg-indigo-50/40 transition-colors cursor-pointer"
-                                        onDoubleClick={() => openDetail(req.id)}
-                                        title="Klik ganda (double-click) untuk melihat detail lengkap permohonan"
-                                    >
-                                        <td className="px-4 py-3">
-                                            <span className="font-mono font-bold text-indigo-700 text-[11px]">{req.nomor_tiket}</span>
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-600">
-                                            {new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className="font-bold text-slate-800 text-xs">{getFullServiceName(req)}</span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className="font-semibold text-slate-800 line-clamp-1">{req.judul_permohonan}</span>
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-600">{req.user?.name}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${statusBadgeStyles[req.status] || 'bg-slate-50 border-slate-200 text-slate-700'}`}>
-                                                {req.status}
-                                            </span>
-                                        </td>
+                                ) : processedRequests.map(req => {
+                                    const reqForm = (typeof req.form_data === 'string')
+                                        ? (() => { try { return JSON.parse(req.form_data); } catch { return {}; } })()
+                                        : (req.form_data || {});
+                                    const targetDate = reqForm.tanggal_kegiatan || reqForm.tanggal_dibutuhkan || req.tanggal_dibutuhkan || reqForm.deadline || reqForm.tanggal_publikasi || reqForm.tanggal_produksi;
+                                    return (
+                                        <tr
+                                            key={req.id}
+                                            className="hover:bg-indigo-50/40 transition-colors cursor-pointer"
+                                            onDoubleClick={() => openDetail(req.id)}
+                                            title="Klik ganda (double-click) untuk melihat detail lengkap permohonan"
+                                        >
+                                            <td className="px-4 py-3">
+                                                <span className="font-mono font-bold text-indigo-700 text-[11px]">{req.nomor_tiket}</span>
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                                                <span>{new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}</span>
+                                                {targetDate && (
+                                                    <span className="block text-[10px] text-slate-400 font-medium truncate">Target: {targetDate}</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="font-bold text-slate-800 text-xs block">{getFullServiceName(req)}</span>
+                                                {reqForm.kategori_kegiatan && (
+                                                    <span className="text-[10px] text-amber-700 font-semibold block">{reqForm.kategori_kegiatan}</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 max-w-xs">
+                                                <span className="font-bold text-slate-800 line-clamp-1 text-xs">{req.judul_permohonan}</span>
+                                                {reqForm.nama_kegiatan && reqForm.nama_kegiatan !== req.judul_permohonan && (
+                                                    <span className="text-[10px] text-slate-500 block truncate">Acara: {reqForm.nama_kegiatan}</span>
+                                                )}
+                                                {Array.isArray(reqForm.souvenir_items) && reqForm.souvenir_items.length > 0 && (
+                                                    <span className="text-[10px] text-amber-700 font-semibold block truncate">
+                                                        {reqForm.souvenir_items.map(s => `${s.nama_item} (${s.qty})`).join(', ')}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <span className="font-bold text-slate-800 block text-xs">{reqForm.nama_pemohon || req.user?.name}</span>
+                                                <span className="text-[10px] text-slate-400 block">{reqForm.unit_pemohon || req.user?.unit_kerja}</span>
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <span className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${statusBadgeStyles[req.status] || 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                                                    {req.status}
+                                                </span>
+                                            </td>
                                         <td className="px-4 py-3 text-right">
                                             <div className="flex items-center justify-end space-x-1.5">
                                                 {canUpdateStatus && (
@@ -1116,7 +1348,8 @@ export default function TrackingPage({ defaultSelectedId }) {
                                             </div>
                                         </td>
                                     </tr>
-                                ))}
+                                );
+                            })}
                             </tbody>
                         </table>
                         <p className="text-[11px] text-slate-400 text-center py-2.5 border-t border-slate-100 font-medium">
