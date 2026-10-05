@@ -12,17 +12,57 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
 import UserManagementPage from './pages/UserManagementPage';
 import StockManagementPage from './pages/StockManagementPage';
+import RoomSchedulePage from './pages/RoomSchedulePage';
+
+// Validasi apakah sebuah tab diizinkan untuk user tertentu
+function isTabAllowed(tab, user) {
+    if (!tab) return false;
+    const role = user?.role || 'Guest';
+    const fallbackPicMap = { ahmad: 'D', nurhaliza: 'P', bagas: 'S', dewi: 'M', rizky: 'L' };
+    const picCode = user?.pic_service_code || fallbackPicMap[user?.username?.toLowerCase()] || null;
+
+    if (!user) {
+        return ['dashboard', 'login'].includes(tab);
+    }
+
+    if (role === 'PIC') {
+        if (['dashboard', 'request-form'].includes(tab)) return false;
+        if (tab === 'approvals' && picCode !== 'S') return false;
+        if (tab === 'stock' && picCode !== 'S') return false;
+        if (tab === 'inventory-multimedia' && picCode !== 'M') return false;
+        if (tab === 'schedule-slots' && picCode !== 'M') return false;
+        if (['analytics', 'settings', 'users'].includes(tab)) return false;
+        return true;
+    }
+
+    if (role === 'User') {
+        return ['dashboard', 'tracking', 'schedule-slots', 'request-form'].includes(tab);
+    }
+
+    if (role === 'Admin') {
+        return ['dashboard', 'tracking', 'schedule-slots', 'analytics', 'stock', 'inventory-multimedia', 'settings', 'request-form'].includes(tab);
+    }
+
+    if (role === 'SuperAdmin') {
+        return true;
+    }
+
+    return true;
+}
 
 function AppContent() {
     const { user, loading } = useAuth();
-    const [currentTab, setCurrentTabState] = useState(
-        () => localStorage.getItem('sapt_active_tab') || 'dashboard'
-    );
+    
+    // Inisialisasi tab: utamakan hash URL, kemudian localStorage, default 'dashboard'
+    const [currentTab, setCurrentTabState] = useState(() => {
+        const hash = window.location.hash.replace(/^#\/?/, '').trim();
+        const saved = localStorage.getItem('sapt_active_tab');
+        return hash || saved || 'dashboard';
+    });
+
     const [selectedServiceCode, setSelectedServiceCode] = useState('D');
     const [selectedPermohonanId, setSelectedPermohonanId] = useState(null);
     const [mobileOpen, setMobileOpen] = useState(false);
-
-    const prevUserRef = React.useRef(user);
 
     // Dapatkan menu paling atas di sidebar sesuai role
     const getTopMenuTab = (role) => {
@@ -36,27 +76,50 @@ function AppContent() {
             targetTab = 'tracking';
         }
         localStorage.setItem('sapt_active_tab', targetTab);
+        try {
+            window.location.hash = targetTab;
+        } catch (e) {}
         setCurrentTabState(targetTab);
     };
 
-    // GUEST & ROLE PROTECTIONS & LOGIN REDIRECTIONS:
+    // Sinkronisasi perubahan hash browser (misal tombol Back/Forward browser)
+    React.useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash.replace(/^#\/?/, '').trim();
+            if (hash && hash !== currentTab) {
+                if (isTabAllowed(hash, user)) {
+                    setCurrentTabState(hash);
+                    localStorage.setItem('sapt_active_tab', hash);
+                }
+            }
+        };
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, [currentTab, user]);
+
+    // PROTEKSI ROLE & VALIDASI TAB:
     React.useEffect(() => {
         if (!loading) {
-            // Ketika baru saja login (transisi dari belum login ke sudah login):
-            // langsung arahkan ke menu utama paling atas sidebar
-            if (!prevUserRef.current && user) {
-                setCurrentTab(getTopMenuTab(user.role));
-            }
-            // Guest redirected to login if accessing protected tabs
-            else if (!user && currentTab !== 'dashboard' && currentTab !== 'login') {
+            // Guest redirected to login jika mengakses tab protected
+            if (!user && currentTab !== 'dashboard' && currentTab !== 'login') {
                 setCurrentTab('login');
             }
-            // PIC cannot access dashboard or request-form because PIC cannot create requests
+            // PIC cannot access dashboard or request-form
             else if (user?.role === 'PIC' && (currentTab === 'dashboard' || currentTab === 'request-form')) {
                 setCurrentTab('tracking');
             }
+            // Jika user mencoba mengakses tab yang tidak diizinkan untuk rolenya
+            else if (user && !isTabAllowed(currentTab, user)) {
+                setCurrentTab(getTopMenuTab(user.role));
+            }
+            // Tab valid: pastikan tersimpan di localStorage dan hash
+            else if (user) {
+                localStorage.setItem('sapt_active_tab', currentTab);
+                try {
+                    window.location.hash = currentTab;
+                } catch (e) {}
+            }
         }
-        prevUserRef.current = user;
     }, [user, currentTab, loading]);
 
     if (loading) {
@@ -148,6 +211,19 @@ function AppContent() {
 
                             {currentTab === 'inventory-multimedia' && (
                                 <StockManagementPage initialTab="multimedia" />
+                            )}
+
+                            {currentTab === 'schedule-slots' && (
+                                <RoomSchedulePage
+                                    onNavigateToRequest={(serviceCode = 'M') => {
+                                        setSelectedServiceCode(serviceCode);
+                                        setCurrentTab('request-form');
+                                    }}
+                                    onOpenTrackingDetail={(id) => {
+                                        setSelectedPermohonanId(id);
+                                        setCurrentTab('tracking');
+                                    }}
+                                />
                             )}
 
                             {currentTab === 'settings' && (
