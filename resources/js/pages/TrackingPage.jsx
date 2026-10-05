@@ -138,6 +138,70 @@ const statusBadgeStyles = {
     'Ditolak': 'bg-rose-50 text-rose-800 border-rose-200',
 };
 
+function formatDateDisplay(val) {
+    if (!val) return '-';
+    const str = String(val).trim();
+    if (!str || str === '-') return '-';
+
+    const matchYMD = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (matchYMD) {
+        const year = parseInt(matchYMD[1], 10);
+        const monthIndex = parseInt(matchYMD[2], 10) - 1;
+        const day = parseInt(matchYMD[3], 10);
+        const d = new Date(year, monthIndex, day);
+        if (!isNaN(d.getTime())) {
+            return d.toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
+            });
+        }
+    }
+
+    const parsed = new Date(str);
+    if (!isNaN(parsed.getTime())) {
+        return parsed.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+
+    return str;
+}
+
+function formatShortDate(val) {
+    if (!val) return null;
+    const str = String(val).trim();
+    if (!str || str === '-') return null;
+
+    const matchYMD = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (matchYMD) {
+        const year = parseInt(matchYMD[1], 10);
+        const monthIndex = parseInt(matchYMD[2], 10) - 1;
+        const day = parseInt(matchYMD[3], 10);
+        const d = new Date(year, monthIndex, day);
+        if (!isNaN(d.getTime())) {
+            return d.toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+    }
+
+    const parsed = new Date(str);
+    if (!isNaN(parsed.getTime())) {
+        return parsed.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+    }
+
+    return str;
+}
+
 function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDragEnd }) {
     const formData = (typeof req.form_data === 'string')
         ? (() => { try { return JSON.parse(req.form_data); } catch { return {}; } })()
@@ -169,7 +233,8 @@ function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDra
             : null;
     }
 
-    const eventDate = formData.tanggal_kegiatan || formData.tanggal_dibutuhkan || req.tanggal_dibutuhkan || formData.deadline || formData.tanggal_publikasi || formData.tanggal_produksi;
+    const rawEventDate = formData.tanggal_kegiatan || formData.tanggal_dibutuhkan || req.tanggal_dibutuhkan || formData.deadline || formData.tanggal_publikasi || formData.tanggal_produksi;
+    const eventDate = formatShortDate(rawEventDate);
 
     return (
         <div
@@ -318,7 +383,7 @@ function RequestFormDetail({ detail }) {
                     <div>
                         <p className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Target / Tanggal Dibutuhkan</p>
                         <p className="font-bold text-slate-800 mt-0.5">
-                            {formData?.tanggal_dibutuhkan || detail.tanggal_dibutuhkan || formData?.deadline || formData?.tanggal_publikasi || formData?.tanggal_produksi || '-'}
+                            {formatDateDisplay(formData?.tanggal_dibutuhkan || detail.tanggal_dibutuhkan || formData?.deadline || formData?.tanggal_publikasi || formData?.tanggal_produksi)}
                         </p>
                     </div>
                     <div>
@@ -395,7 +460,7 @@ function RequestFormDetail({ detail }) {
                             </div>
                             <div>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Tanggal Kegiatan</span>
-                                <span className="font-semibold text-slate-800">{formData?.tanggal_kegiatan || '-'}</span>
+                                <span className="font-semibold text-slate-800">{formatDateDisplay(formData?.tanggal_kegiatan)}</span>
                             </div>
                             <div>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Waktu Kegiatan</span>
@@ -407,7 +472,7 @@ function RequestFormDetail({ detail }) {
                             </div>
                             <div>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Tanggal Suvenir Dibutuhkan</span>
-                                <span className="font-bold text-amber-900">{formData?.tanggal_dibutuhkan || detail.tanggal_dibutuhkan || '-'}</span>
+                                <span className="font-bold text-amber-900">{formatDateDisplay(formData?.tanggal_dibutuhkan || detail.tanggal_dibutuhkan)}</span>
                             </div>
                             <div className="sm:col-span-2 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                                 <div>
@@ -537,7 +602,7 @@ function RequestFormDetail({ detail }) {
                         <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase block">Tanggal Produksi / Pelaksanaan</span>
                             <span className="font-bold text-slate-900">
-                                {detail.multimedia_detail?.tanggal_pelaksanaan || formData?.tanggal_produksi || detail.tanggal_dibutuhkan || '-'}
+                                {formatDateDisplay(detail.multimedia_detail?.tanggal_pelaksanaan || formData?.tanggal_produksi || detail.tanggal_dibutuhkan)}
                             </span>
                         </div>
                         <div>
@@ -605,7 +670,7 @@ function RequestFormDetail({ detail }) {
                         </h4>
                         {formData?.tanggal_publikasi && (
                             <span className="px-2.5 py-0.5 bg-sky-100 text-sky-800 rounded-full text-[10px] font-black">
-                                Target Tayang: {formData.tanggal_publikasi}
+                                Target Tayang: {formatDateDisplay(formData.tanggal_publikasi)}
                             </span>
                         )}
                     </div>
@@ -680,7 +745,7 @@ function RequestFormDetail({ detail }) {
                         </h4>
                         {formData?.deadline && (
                             <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 rounded-full text-[10px] font-black">
-                                Deadline: {formData.deadline}
+                                Deadline: {formatDateDisplay(formData.deadline)}
                             </span>
                         )}
                     </div>
@@ -783,7 +848,7 @@ function RequestFormDetail({ detail }) {
                             <div>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Waktu Peliputan</span>
                                 <span className="font-bold text-slate-900">
-                                    {formData?.waktu_peliputan || detail.tanggal_dibutuhkan || '-'}
+                                    {formatDateDisplay(formData?.waktu_peliputan || detail.tanggal_dibutuhkan)}
                                 </span>
                             </div>
                             {formData?.pimpinan_tamu_hadir && (
@@ -1328,7 +1393,8 @@ export default function TrackingPage({ defaultSelectedId }) {
                                     const reqForm = (typeof req.form_data === 'string')
                                         ? (() => { try { return JSON.parse(req.form_data); } catch { return {}; } })()
                                         : (req.form_data || {});
-                                    const targetDate = reqForm.tanggal_kegiatan || reqForm.tanggal_dibutuhkan || req.tanggal_dibutuhkan || reqForm.deadline || reqForm.tanggal_publikasi || reqForm.tanggal_produksi;
+                                    const rawTargetDate = reqForm.tanggal_kegiatan || reqForm.tanggal_dibutuhkan || req.tanggal_dibutuhkan || reqForm.deadline || reqForm.tanggal_publikasi || reqForm.tanggal_produksi;
+                                    const targetDate = formatShortDate(rawTargetDate);
                                     return (
                                         <tr
                                             key={req.id}
