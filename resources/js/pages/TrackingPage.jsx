@@ -873,7 +873,7 @@ export default function TrackingPage({ defaultSelectedId }) {
     };
 
     const loadRequests = async () => {
-        if (isPic && !activeService) {
+        if (!activeService) {
             setRequests([]);
             setLoading(false);
             return;
@@ -882,7 +882,7 @@ export default function TrackingPage({ defaultSelectedId }) {
         try {
             const params = new URLSearchParams();
             params.append('per_page', '100');
-            if (activeService) params.append('service_code', activeService);
+            params.append('service_code', activeService);
             if (searchTerm) params.append('search', searchTerm);
 
             const res = await api.get(`/requests?${params.toString()}`);
@@ -1049,8 +1049,12 @@ export default function TrackingPage({ defaultSelectedId }) {
     };
 
     const handleExport = (format) => {
+        if (!activeService) {
+            alert('Silakan pilih layanan terlebih dahulu sebelum melakukan export data.');
+            return;
+        }
         const params = new URLSearchParams();
-        if (serviceFilter) params.append('service_code', serviceFilter);
+        params.append('service_code', activeService);
         if (searchTerm) params.append('search', searchTerm);
         window.open(`/api/v1/export/${format}?${params.toString()}`, '_blank');
     };
@@ -1178,7 +1182,7 @@ export default function TrackingPage({ defaultSelectedId }) {
                             value={serviceFilter}
                             onChange={(val) => setServiceFilter(val)}
                             options={[
-                                { value: '', label: 'Semua Layanan', icon: Filter },
+                                { value: '', label: 'Pilih Layanan', icon: Filter },
                                 ...SERVICES.map(svc => ({
                                     value: svc.code,
                                     label: svc.name,
@@ -1187,7 +1191,7 @@ export default function TrackingPage({ defaultSelectedId }) {
                                     colorDot: serviceThemeMap[svc.code]?.colorDot,
                                 }))
                             ]}
-                            placeholder="Semua Layanan"
+                            placeholder="Pilih Layanan"
                             className="bg-slate-50 hover:bg-white"
                         />
                     </div>
@@ -1232,13 +1236,56 @@ export default function TrackingPage({ defaultSelectedId }) {
                     </button>
                 )}
 
-                <button onClick={loadRequests} className="p-2 text-slate-400 hover:text-green-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer" title="Refresh data">
+                <button
+                    onClick={loadRequests}
+                    disabled={!activeService}
+                    className={`p-2 rounded-xl transition-colors ${!activeService ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-green-600 hover:bg-slate-100 cursor-pointer'}`}
+                    title={!activeService ? 'Pilih layanan terlebih dahulu' : 'Refresh data'}
+                >
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
 
             {/* Kanban / Table View */}
-            {viewMode === 'table' ? (
+            {!activeService ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center bg-white rounded-2xl border border-slate-200/80 shadow-xs min-h-[460px]">
+                    <div className="w-16 h-16 rounded-3xl bg-indigo-50 border border-indigo-100/80 flex items-center justify-center text-indigo-600 mb-4 shadow-xs">
+                        <Filter className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-slate-800 mb-1.5">
+                        Silakan Pilih Layanan Terlebih Dahulu
+                    </h3>
+                    <p className="text-xs text-slate-500 max-w-md mb-6 leading-relaxed">
+                        Untuk melihat daftar dan riwayat permohonan, silakan pilih salah satu layanan melalui filter di atas atau klik salah satu layanan di bawah ini.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full max-w-3xl text-left">
+                        {SERVICES.map(svc => {
+                            const IconComp = serviceIconMap[svc.code] || Filter;
+                            const theme = serviceThemeMap[svc.code] || {};
+                            return (
+                                <button
+                                    key={svc.code}
+                                    type="button"
+                                    onClick={() => setServiceFilter(svc.code)}
+                                    className="flex items-center gap-3.5 p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 hover:bg-white hover:border-indigo-300 hover:shadow-sm transition-all duration-150 cursor-pointer group text-left"
+                                >
+                                    <div className={`p-2.5 rounded-xl shrink-0 ${theme.iconBg || 'bg-slate-100 text-slate-700'} group-hover:scale-105 transition-transform`}>
+                                        <IconComp className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-xs font-bold text-slate-800 group-hover:text-indigo-600 truncate transition-colors">
+                                            {svc.name}
+                                        </div>
+                                        <div className="text-[10px] text-slate-400 mt-0.5">
+                                            Klik untuk memuat layanan
+                                        </div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : viewMode === 'table' ? (
                 /* TABLE VIEW */
                 <div className="flex-1 overflow-auto">
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
