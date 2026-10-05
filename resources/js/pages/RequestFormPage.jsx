@@ -36,42 +36,42 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
     const [errorMsg, setErrorMsg] = useState(null);
     const [successTicket, setSuccessTicket] = useState(null);
 
-    // Common fields across all forms
-    const [namaPemohon, setNamaPemohon] = useState(user?.name || '');
-    const [unitPemohon, setUnitPemohon] = useState(user?.unit_kerja || '');
+    // Common fields across all forms (kosong default)
+    const [namaPemohon, setNamaPemohon] = useState('');
+    const [unitPemohon, setUnitPemohon] = useState('');
     const [noWhatsappPemohon, setNoWhatsappPemohon] = useState('');
     const [namaKegiatan, setNamaKegiatan] = useState('');
     const [tanggalKegiatan, setTanggalKegiatan] = useState('');
     const [waktuKegiatan, setWaktuKegiatan] = useState('');
     const [lokasiKegiatan, setLokasiKegiatan] = useState('');
-    const [namaPicKegiatan, setNamaPicKegiatan] = useState(user?.name || '');
+    const [namaPicKegiatan, setNamaPicKegiatan] = useState('');
     const [noWhatsappPic, setNoWhatsappPic] = useState('');
     const [files, setFiles] = useState([]);
 
-    // Specific [D] Desain Grafis states
-    const [jenisDesain, setJenisDesain] = useState(['Poster Cetak']);
+    // Specific [D] Desain Grafis states (kosong default)
+    const [jenisDesain, setJenisDesain] = useState([]);
     const [jenisDesainLainnya, setJenisDesainLainnya] = useState('');
     const [tujuanPermintaanDesain, setTujuanPermintaanDesain] = useState('');
     const [judulTemaDesain, setJudulTemaDesain] = useState('');
     const [informasiDicantumkan, setInformasiDicantumkan] = useState('');
-    const [ukuranDesain, setUkuranDesain] = useState('A4 (21 x 29.7 cm)');
-    const [mediaPenggunaan, setMediaPenggunaan] = useState('Media Cetak & Instagram');
+    const [ukuranDesain, setUkuranDesain] = useState('');
+    const [mediaPenggunaan, setMediaPenggunaan] = useState('');
     const [deadlineDesain, setDeadlineDesain] = useState('');
     const [referensiDesain, setReferensiDesain] = useState('');
 
-    // Specific [P] Publikasi states
-    const [mediaPublikasi, setMediaPublikasi] = useState(['Feed/Reels Instagram @universitasyarsi']);
+    // Specific [P] Publikasi states (kosong default)
+    const [mediaPublikasi, setMediaPublikasi] = useState([]);
     const [isiCaption, setIsiCaption] = useState('');
-    const [tagMention, setTagMention] = useState('@universitasyarsi');
+    const [tagMention, setTagMention] = useState('');
     const [tanggalPublikasi, setTanggalPublikasi] = useState('');
     const [linkDrivePublikasi, setLinkDrivePublikasi] = useState('');
 
-    // Specific [S] Alat Promosi states
-    const [kategoriPromosi, setKategoriPromosi] = useState('Promosi Kampus');
+    // Specific [S] Alat Promosi states (kosong default)
+    const [kategoriPromosi, setKategoriPromosi] = useState('');
     const [kategoriPromosiLainnya, setKategoriPromosiLainnya] = useState('');
     const [tanggalDibutuhkanPromosi, setTanggalDibutuhkanPromosi] = useState('');
     const [souvenirItems, setSouvenirItems] = useState([
-        { id: 'goodiebag', nama_item: 'Goodiebag', qty: 20, checked: true },
+        { id: 'goodiebag', nama_item: 'Goodiebag', qty: 0, checked: false },
         { id: 'brosur_s1', nama_item: 'Brosur S1', qty: 0, checked: false },
         { id: 'brosur_s2', nama_item: 'Brosur S2', qty: 0, checked: false },
         { id: 'stiker_yarsi', nama_item: 'Stiker YARSI', qty: 0, checked: false },
@@ -87,20 +87,20 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
     const [suvenirLainnyaChecked, setSuvenirLainnyaChecked] = useState(false);
     const [suvenirLimit, setSuvenirLimit] = useState(20);
 
-    // Specific [M] Multimedia states
-    const [jenisKebutuhanMm, setJenisKebutuhanMm] = useState(['Foto Dokumentasi']);
+    // Specific [M] Multimedia states (kosong default)
+    const [jenisKebutuhanMm, setJenisKebutuhanMm] = useState([]);
     const [konsepKontenMm, setKonsepKontenMm] = useState('');
-    const [tanggalProduksiMm, setTanggalProduksiMm] = useState(new Date().toISOString().split('T')[0]);
-    const [lokasiProduksiMm, setLokasiProduksiMm] = useState('Studio Podcast 1 (Lantai 2)');
-    const [mmStartTime, setMmStartTime] = useState('09:00');
-    const [mmEndTime, setMmEndTime] = useState('11:00');
+    const [tanggalProduksiMm, setTanggalProduksiMm] = useState('');
+    const [lokasiProduksiMm, setLokasiProduksiMm] = useState('');
+    const [mmStartTime, setMmStartTime] = useState('');
+    const [mmEndTime, setMmEndTime] = useState('');
     const [narasumberMm, setNarasumberMm] = useState('');
     const [outputMm, setOutputMm] = useState('');
     const [linkDriveMm, setLinkDriveMm] = useState('');
-    const [mmValid, setMmValid] = useState(true);
+    const [mmValid, setMmValid] = useState(false);
 
-    // Specific [L] Peliputan states
-    const [jenisPeliputan, setJenisPeliputan] = useState(['Penulisan Berita']);
+    // Specific [L] Peliputan states (kosong default)
+    const [jenisPeliputan, setJenisPeliputan] = useState([]);
     const [rundownAcara, setRundownAcara] = useState('');
     const [pimpinanTamuHadir, setPimpinanTamuHadir] = useState('');
     const [waktuPeliputan, setWaktuPeliputan] = useState('');
@@ -126,12 +126,6 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
         fetchService();
     }, [serviceCode]);
 
-    useEffect(() => {
-        if (user) {
-            if (!namaPemohon && user.name) setNamaPemohon(user.name);
-            if (!unitPemohon && user.unit_kerja) setUnitPemohon(user.unit_kerja);
-        }
-    }, [user]);
 
     // Calculate total requested souvenirs
     const totalSouvenirQty = souvenirItems.reduce((acc, curr) => {
@@ -149,8 +143,12 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
     const handleSouvenirItemChange = (index, field, value) => {
         const updated = [...souvenirItems];
         updated[index][field] = value;
-        if (field === 'checked' && value && (!updated[index].qty || updated[index].qty <= 0)) {
-            updated[index].qty = 10;
+        if (field === 'checked') {
+            if (!value) {
+                updated[index].qty = 0;
+            } else if (!updated[index].qty) {
+                updated[index].qty = '';
+            }
         }
         setSouvenirItems(updated);
     };
@@ -193,6 +191,10 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 return;
             }
         } else if (serviceCode === 'S') {
+            if (!kategoriPromosi) {
+                setErrorMsg('Pilih kategori kegiatan / program alat promosi.');
+                return;
+            }
             if (kategoriPromosi === 'Lainnya' && !kategoriPromosiLainnya.trim()) {
                 setErrorMsg('Mohon tuliskan rincian kategori kegiatan lainnya.');
                 return;
@@ -212,6 +214,14 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
         } else if (serviceCode === 'M') {
             if (jenisKebutuhanMm.length === 0) {
                 setErrorMsg('Pilih minimal satu jenis kebutuhan multimedia.');
+                return;
+            }
+            if (!tanggalProduksiMm) {
+                setErrorMsg('Tanggal pelaksanaan/produksi multimedia wajib diisi.');
+                return;
+            }
+            if (!mmStartTime || !mmEndTime) {
+                setErrorMsg('Jam mulai dan jam selesai multimedia wajib dipilih.');
                 return;
             }
             if (!mmValid) {
@@ -1066,8 +1076,9 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                                     <input
                                                         type="number"
                                                         min="1"
-                                                        value={item.qty}
-                                                        onChange={(e) => handleSouvenirItemChange(idx, 'qty', parseInt(e.target.value, 10) || 0)}
+                                                        placeholder="0"
+                                                        value={item.qty === 0 || item.qty === '' ? '' : item.qty}
+                                                        onChange={(e) => handleSouvenirItemChange(idx, 'qty', e.target.value === '' ? '' : parseInt(e.target.value, 10) || 0)}
                                                         className="w-16 px-2 py-1 bg-white border border-amber-300 rounded-lg text-xs font-bold text-center"
                                                     />
                                                     <span className="text-[10px] text-slate-400">unit</span>
