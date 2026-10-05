@@ -292,11 +292,8 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                             <CalendarDays className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                                 Ketersediaan Slot Jam
-                                <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
-                                    Google Calendar View
-                                </span>
                             </h2>
                             <p className="text-xs text-slate-500 mt-0.5">
                                 Penjadwalan & Peminjaman Ruangan, Studio Podcast, dan Fasilitas Multimedia Universitas YARSI.
