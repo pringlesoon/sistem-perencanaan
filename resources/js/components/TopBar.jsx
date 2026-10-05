@@ -12,6 +12,7 @@ const PAGE_TITLES = {
     settings: { title: 'Kelola Layanan', subtitle: 'Konfigurasi layanan sistem' },
     users: { title: 'Kelola Pengguna', subtitle: 'Manajemen pengguna & PIC layanan' },
     stock: { title: 'Manajemen Stok', subtitle: 'Inventaris alat promosi & suvenir' },
+    'schedule-slots': { title: 'Ketersediaan Slot Jam', subtitle: 'Penjadwalan & Peminjaman Ruangan/Alat' },
     'request-form': { title: 'Form Permohonan', subtitle: 'Ajukan permohonan baru' },
 };
 

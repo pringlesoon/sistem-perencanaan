@@ -31,8 +31,9 @@ Route::prefix('v1')->group(function () {
     Route::put('/services/{code}', [ServiceController::class, 'update']);
     Route::put('/services/{code}/rules', [ServiceController::class, 'updateRules']);
 
-    // 3. Modul Multimedia — Conflict Checking & Availability (PRD FR-MM-03)
+    // 3. Modul Multimedia — Conflict Checking & Availability & Schedule (PRD FR-MM-03)
     Route::get('/multimedia/availability', [MultimediaController::class, 'availability']);
+    Route::get('/multimedia/schedule', [MultimediaController::class, 'schedule']);
 
     // 4. Modul Permohonan (Requests) & Tracking
     Route::get('/requests', [PermohonanController::class, 'index']);

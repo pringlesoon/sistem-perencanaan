@@ -12,7 +12,8 @@ import {
     Package,
     Camera,
     FileText,
-    LogIn
+    LogIn,
+    CalendarClock
 } from 'lucide-react';
 
 export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobileOpen }) {
@@ -20,7 +21,8 @@ export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobi
     const [collapsed, setCollapsed] = useState(false);
 
     const role = user?.role || 'Guest';
-    const picCode = user?.pic_service_code;
+    const fallbackPicMap = { ahmad: 'D', nurhaliza: 'P', bagas: 'S', dewi: 'M', rizky: 'L' };
+    const picCode = user?.pic_service_code || fallbackPicMap[user?.username?.toLowerCase()] || null;
 
     const handleLogoClick = () => {
         if (role === 'PIC') {
@@ -38,6 +40,10 @@ export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobi
     }
     if (['User', 'Admin', 'SuperAdmin', 'PIC', 'Guest'].includes(role)) {
         navItems.push({ id: 'tracking', label: role === 'PIC' ? 'Daftar Permohonan' : 'Tracking Permohonan', icon: ListOrdered });
+    }
+    // Ketersediaan Slot Jam (Penjadwalan & Peminjaman Ruangan/Alat) untuk User, SuperAdmin, Admin
+    if (['User', 'Admin', 'SuperAdmin'].includes(role)) {
+        navItems.push({ id: 'schedule-slots', label: 'Ketersediaan Slot Jam', icon: CalendarClock });
     }
     if (['Admin', 'SuperAdmin'].includes(role)) {
         navItems.push({ id: 'analytics', label: 'Dasbor Analitik', icon: BarChart3 });
@@ -57,6 +63,7 @@ export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobi
             navItems.push({ id: 'approvals', label: 'Persetujuan Kuota', icon: CheckSquare });
         }
         if (picCode === 'M') {
+            navItems.push({ id: 'schedule-slots', label: 'Ketersediaan Slot Jam', icon: CalendarClock });
             navItems.push({ id: 'inventory-multimedia', label: 'Inventaris Alat', icon: Camera });
         }
     }
