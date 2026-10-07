@@ -14,14 +14,15 @@ use Illuminate\Support\Facades\DB;
 class MultimediaSchedulingService
 {
     /**
-     * Mengambil daftar slot waktu yang sudah terisi pada tanggal tertentu
+     * Mengambil daftar slot waktu yang sudah terisi pada tanggal tertentu.
+     * Hanya permohonan yang berstatus 'Diproses', 'Disetujui', atau 'Selesai' yang mengunci slot.
      */
     public function getAvailability(string $date): Collection
     {
         return RequestMultimediaDetail::query()
             ->join('permohonans', 'request_multimedia_details.permohonan_id', '=', 'permohonans.id')
             ->where('request_multimedia_details.tanggal_pelaksanaan', $date)
-            ->whereIn('permohonans.status', ['Diajukan', 'Diproses', 'Selesai'])
+            ->whereIn('permohonans.status', ['Diproses', 'Disetujui', 'Selesai'])
             ->select([
                 'request_multimedia_details.id',
                 'request_multimedia_details.permohonan_id',
@@ -40,13 +41,15 @@ class MultimediaSchedulingService
     /**
      * Memeriksa apakah terjadi bentrok jadwal (Conflict Checking)
      * Menggunakan query overlap: (new.jam_mulai < existing.jam_selesai) AND (new.jam_selesai > existing.jam_mulai)
+     * Default memeriksa permohonan yang sudah mengunci slot ('Diproses', 'Disetujui', 'Selesai')
      */
     public function checkConflict(
         string $date,
         string $startTime,
         string $endTime,
         ?int $excludePermohonanId = null,
-        bool $useLock = false
+        bool $useLock = false,
+        array $statuses = ['Diproses', 'Disetujui', 'Selesai']
     ): bool {
         // Normalisasi format waktu ke H:i:s
         $startTime = Carbon::parse($startTime)->format('H:i:s');
@@ -55,7 +58,7 @@ class MultimediaSchedulingService
         $query = RequestMultimediaDetail::query()
             ->join('permohonans', 'request_multimedia_details.permohonan_id', '=', 'permohonans.id')
             ->where('request_multimedia_details.tanggal_pelaksanaan', $date)
-            ->whereIn('permohonans.status', ['Diajukan', 'Diproses', 'Selesai'])
+            ->whereIn('permohonans.status', $statuses)
             ->where(function ($q) use ($startTime, $endTime) {
                 // Syarat Overlap
                 $q->where('request_multimedia_details.jam_mulai', '<', $endTime)
@@ -71,6 +74,37 @@ class MultimediaSchedulingService
         }
 
         return $query->exists();
+    }
+
+    /**
+     * Mengambil daftar permohonan lain yang berstatus 'Diajukan'
+     * dan jadwalnya bentrok dengan slot waktu yang diberikan
+     */
+    public function getConflictingPendingRequests(
+        string $date,
+        string $startTime,
+        string $endTime,
+        int $excludePermohonanId
+    ): Collection {
+        $startTime = Carbon::parse($startTime)->format('H:i:s');
+        $endTime = Carbon::parse($endTime)->format('H:i:s');
+
+        return RequestMultimediaDetail::query()
+            ->join('permohonans', 'request_multimedia_details.permohonan_id', '=', 'permohonans.id')
+            ->where('request_multimedia_details.tanggal_pelaksanaan', $date)
+            ->where('permohonans.status', 'Diajukan')
+            ->where('permohonans.id', '!=', $excludePermohonanId)
+            ->where(function ($q) use ($startTime, $endTime) {
+                $q->where('request_multimedia_details.jam_mulai', '<', $endTime)
+                  ->where('request_multimedia_details.jam_selesai', '>', $startTime);
+            })
+            ->select([
+                'permohonans.*',
+                'request_multimedia_details.jam_mulai',
+                'request_multimedia_details.jam_selesai',
+                'request_multimedia_details.tanggal_pelaksanaan',
+            ])
+            ->get();
     }
 
     /**

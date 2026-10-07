@@ -48,21 +48,33 @@ class MultimediaController extends Controller
         $endDate = $request->query('end_date');
         $location = $request->query('location');
         $status = $request->query('status');
+        $need = $request->query('need');
         $search = $request->query('search');
 
         $query = RequestMultimediaDetail::query()
             ->with(['permohonan.user'])
-            ->whereHas('permohonan', function ($q) use ($status, $search) {
+            ->whereHas('permohonan', function ($q) use ($status, $search, $need) {
                 if ($status && $status !== 'all') {
                     $q->where('status', $status);
                 } else {
-                    $q->whereNotIn('status', ['Ditolak']);
+                    $q->whereIn('status', ['Diproses', 'Disetujui', 'Selesai']);
+                }
+
+                if ($need && $need !== 'all') {
+                    $q->where(function ($nq) use ($need) {
+                        $nq->where('form_data->jenis_kebutuhan', 'LIKE', "%{$need}%")
+                           ->orWhere('judul_permohonan', 'LIKE', "%{$need}%");
+                    });
                 }
 
                 if ($search) {
                     $q->where(function ($sq) use ($search) {
                         $sq->where('nomor_tiket', 'LIKE', "%{$search}%")
-                            ->orWhere('judul_permohonan', 'LIKE', "%{$search}%");
+                            ->orWhere('judul_permohonan', 'LIKE', "%{$search}%")
+                            ->orWhere('form_data->nama_kegiatan', 'LIKE', "%{$search}%")
+                            ->orWhere('form_data->nama_pemohon', 'LIKE', "%{$search}%")
+                            ->orWhere('form_data->unit_pemohon', 'LIKE', "%{$search}%")
+                            ->orWhere('form_data->lokasi_kegiatan', 'LIKE', "%{$search}%");
                     });
                 }
             });

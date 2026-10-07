@@ -98,6 +98,43 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
     const [outputMm, setOutputMm] = useState('');
     const [linkDriveMm, setLinkDriveMm] = useState('');
     const [mmValid, setMmValid] = useState(false);
+    const [deadlineMm, setDeadlineMm] = useState('');
+
+    // Klasifikasi jenis kebutuhan Multimedia:
+    // 1. Produksi (memerlukan booking studio/alat & jadwal pelaksanaan):
+    const MM_PRODUKSI_ITEMS = [
+        'Foto Dokumentasi',
+        'Podcast',
+        'Operator Live Streaming',
+        'Video Dokumentasi'
+    ];
+    // 2. Pasca-Produksi / Deliverable (memerlukan Target Penyelesaian / Deadline hasil editor):
+    const MM_PASCA_PRODUKSI_ITEMS = [
+        'Video Promosi',
+        'Editing Video'
+    ];
+
+    // Logika Kondisional:
+    // - butuhJadwal: jika memilih item Produksi (atau default belum memilih)
+    // - butuhTargetPenyelesaian: jika memilih item Pasca-Produksi
+    // Jika memilih campuran (misal: "Podcast" + "Editing Video"), KEDUA BLOK MUNCUL BERSAMAAN!
+    const mmButuhJadwal = jenisKebutuhanMm.length === 0
+        || jenisKebutuhanMm.some((item) => MM_PRODUKSI_ITEMS.includes(item));
+    const mmButuhTargetPenyelesaian = jenisKebutuhanMm.some((item) => MM_PASCA_PRODUKSI_ITEMS.includes(item));
+
+    // Bersihkan data dari mode yang tidak aktif agar tidak tersimpan sia-sia
+    useEffect(() => {
+        if (!mmButuhJadwal && jenisKebutuhanMm.length > 0) {
+            setTanggalProduksiMm('');
+            setMmStartTime('');
+            setMmEndTime('');
+            setLokasiProduksiMm('');
+            setMmValid(false);
+        }
+        if (!mmButuhTargetPenyelesaian) {
+            setDeadlineMm('');
+        }
+    }, [mmButuhJadwal, mmButuhTargetPenyelesaian, jenisKebutuhanMm.length]);
 
     // Specific [L] Peliputan states (kosong default)
     const [jenisPeliputan, setJenisPeliputan] = useState([]);
@@ -216,17 +253,25 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 setErrorMsg('Pilih minimal satu jenis kebutuhan multimedia.');
                 return;
             }
-            if (!tanggalProduksiMm) {
-                setErrorMsg('Tanggal pelaksanaan/produksi multimedia wajib diisi.');
-                return;
+            if (mmButuhJadwal) {
+                if (!tanggalProduksiMm) {
+                    setErrorMsg('Tanggal pelaksanaan/produksi (booking ruangan/alat) wajib diisi.');
+                    return;
+                }
+                if (!mmStartTime || !mmEndTime) {
+                    setErrorMsg('Jam mulai dan jam selesai multimedia wajib dipilih.');
+                    return;
+                }
+                if (!mmValid) {
+                    setErrorMsg('Jadwal multimedia tidak valid (maksimal 3 jam dan tidak boleh bentrok).');
+                    return;
+                }
             }
-            if (!mmStartTime || !mmEndTime) {
-                setErrorMsg('Jam mulai dan jam selesai multimedia wajib dipilih.');
-                return;
-            }
-            if (!mmValid) {
-                setErrorMsg('Jadwal multimedia tidak valid (maksimal 3 jam dan tidak boleh bentrok).');
-                return;
+            if (mmButuhTargetPenyelesaian) {
+                if (!deadlineMm) {
+                    setErrorMsg('Target penyelesaian / deadline hasil akhir video/editing wajib diisi.');
+                    return;
+                }
             }
             if (files.length === 0) {
                 setErrorMsg('Surat permohonan multimedia dari pimpinan unit kerja wajib diunggah.');
@@ -321,22 +366,35 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
         } else if (serviceCode === 'M') {
             finalJudul = namaKegiatan ? `Multimedia: ${namaKegiatan}` : 'Permohonan Layanan Multimedia';
             finalDeskripsi = `Jenis: ${jenisKebutuhanMm.join(', ')}\nKonsep: ${konsepKontenMm}\nOutput: ${outputMm}`;
-            finalTanggalDibutuhkan = tanggalProduksiMm;
+            // Tanggal yang dijadikan acuan timeline utama permohonan
+            finalTanggalDibutuhkan = deadlineMm || tanggalProduksiMm;
             Object.assign(formDataPayload, {
                 jenis_kebutuhan: jenisKebutuhanMm,
                 unit_pemohon: unitPemohon,
                 no_whatsapp_pemohon: noWhatsappPemohon,
                 nama_kegiatan: namaKegiatan,
-                tanggal_kegiatan: tanggalKegiatan,
-                waktu_kegiatan: waktuKegiatan,
                 lokasi_kegiatan: lokasiKegiatan,
                 nama_pic_kegiatan: namaPicKegiatan,
                 no_whatsapp_pic: noWhatsappPic,
                 konsep_konten: konsepKontenMm,
-                tanggal_produksi: tanggalProduksiMm,
-                lokasi_produksi: lokasiProduksiMm,
-                jam_mulai: mmStartTime,
-                jam_selesai: mmEndTime,
+                butuh_penjadwalan: mmButuhJadwal,
+                butuh_target_penyelesaian: mmButuhTargetPenyelesaian,
+                ...(mmButuhJadwal
+                    ? {
+                        tanggal_kegiatan: tanggalProduksiMm,
+                        waktu_kegiatan: `${mmStartTime} - ${mmEndTime}`,
+                        tanggal_produksi: tanggalProduksiMm,
+                        lokasi_produksi: lokasiProduksiMm,
+                        jam_mulai: mmStartTime,
+                        jam_selesai: mmEndTime,
+                    }
+                    : {}),
+                ...(mmButuhTargetPenyelesaian
+                    ? {
+                        deadline: deadlineMm,
+                        target_penyelesaian: deadlineMm,
+                    }
+                    : {}),
                 narasumber_talent: narasumberMm,
                 output_diharapkan: outputMm,
                 link_drive: linkDriveMm,
@@ -370,7 +428,7 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
         data.append('form_data', JSON.stringify(formDataPayload));
 
         // Format khusus untuk service S dan M agar kompatibel dengan tabel relasi detail
-        if (serviceCode === 'M') {
+        if (serviceCode === 'M' && mmButuhJadwal) {
             data.append('tanggal_pelaksanaan', tanggalProduksiMm);
             data.append('jam_mulai', mmStartTime);
             data.append('jam_selesai', mmEndTime);
@@ -1171,10 +1229,10 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                                     {[
                                         'Foto Dokumentasi',
-                                        'Operator Podcast',
+                                        'Podcast',
                                         'Video Promosi',
                                         'Editing Video',
-                                        'Live Streaming',
+                                        'Operator Live Streaming',
                                         'Video Dokumentasi',
                                     ].map((item) => (
                                         <label
@@ -1212,25 +1270,7 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                         className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
                                     />
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Tanggal Kegiatan</label>
-                                        <input
-                                            type="date"
-                                            value={tanggalKegiatan}
-                                            onChange={(e) => setTanggalKegiatan(e.target.value)}
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Waktu</label>
-                                        <input
-                                            type="time"
-                                            value={waktuKegiatan}
-                                            onChange={(e) => setWaktuKegiatan(e.target.value)}
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
-                                        />
-                                    </div>
+                                <div className="grid grid-cols-1 gap-3">
                                     <div>
                                         <label className="block text-[11px] font-bold text-slate-600 mb-1">Lokasi Kegiatan</label>
                                         <input
@@ -1282,41 +1322,80 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                     />
                                 </div>
 
-                                {/* Penjadwalan Produksi & DateTimePicker Conflict Free */}
-                                <div className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-2xl space-y-3">
-                                    <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wider block">
-                                        Penjadwalan & Peminjaman Ruangan/Alat (Maksimal 3 Jam)
-                                    </span>
-                                    <DateTimePicker
-                                        selectedDate={tanggalProduksiMm}
-                                        setSelectedDate={setTanggalProduksiMm}
-                                        startTime={mmStartTime}
-                                        setStartTime={setMmStartTime}
-                                        endTime={mmEndTime}
-                                        setEndTime={setMmEndTime}
-                                        maxDurationMinutes={180}
-                                        onValidationChange={(val) => setMmValid(val.isValid)}
-                                    />
-                                    <div>
-                                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                            Lokasi Produksi / Ruangan / Alat
-                                        </label>
-                                        <CustomSelect
-                                            value={lokasiProduksiMm}
-                                            onChange={(val) => setLokasiProduksiMm(val)}
-                                            options={[
-                                                { value: 'Studio Podcast 1 (Lantai 2)', label: 'Studio Podcast 1 (Lantai 2)' },
-                                                { value: 'Studio Podcast 2 (Lantai 3)', label: 'Studio Podcast 2 (Lantai 3)' },
-                                                { value: 'Paket Kamera Video Sony Cinema & Wireless Mic', label: 'Paket Kamera Video Sony Cinema & Wireless Mic' },
-                                                { value: 'Set Lighting Studio & Green Screen', label: 'Set Lighting Studio & Green Screen' },
-                                                { value: 'Proyektor 5000 Lumens & Portable Screen', label: 'Proyektor 5000 Lumens & Portable Screen' },
-                                                { value: 'Lokasi Eksternal / Lapangan Kampus', label: 'Lokasi Eksternal / Lapangan Kampus' },
-                                            ]}
-                                            placeholder="Pilih Lokasi / Ruangan / Alat"
-                                            fullWidth
+                                {/* Blok 1: Penjadwalan & Booking Ruangan/Alat (Produksi) */}
+                                {mmButuhJadwal && (
+                                    <div className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-2xl space-y-3">
+                                        <div className="flex items-center space-x-2">
+                                            <Calendar className="w-4 h-4 text-emerald-700" />
+                                            <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wider block">
+                                                Penjadwalan & Peminjaman Ruangan/Alat (Maksimal 3 Jam)
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-emerald-800">
+                                            Digunakan untuk mencatat tanggal dan jam pelaksanaan syuting/rekaman serta booking studio podcast atau alat multimedia.
+                                        </p>
+                                        <DateTimePicker
+                                            selectedDate={tanggalProduksiMm}
+                                            setSelectedDate={setTanggalProduksiMm}
+                                            startTime={mmStartTime}
+                                            setStartTime={setMmStartTime}
+                                            endTime={mmEndTime}
+                                            setEndTime={setMmEndTime}
+                                            maxDurationMinutes={180}
+                                            onValidationChange={(val) => setMmValid(val.isValid)}
                                         />
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                                Lokasi Produksi / Ruangan / Alat
+                                            </label>
+                                            <CustomSelect
+                                                value={lokasiProduksiMm}
+                                                onChange={(val) => setLokasiProduksiMm(val)}
+                                                options={[
+                                                    { value: 'Studio Podcast 1 (Lantai 2)', label: 'Studio Podcast 1 (Lantai 2)' },
+                                                    { value: 'Studio Podcast 2 (Lantai 3)', label: 'Studio Podcast 2 (Lantai 3)' },
+                                                    { value: 'Paket Kamera Video Sony Cinema & Wireless Mic', label: 'Paket Kamera Video Sony Cinema & Wireless Mic' },
+                                                    { value: 'Set Lighting Studio & Green Screen', label: 'Set Lighting Studio & Green Screen' },
+                                                    { value: 'Proyektor 5000 Lumens & Portable Screen', label: 'Proyektor 5000 Lumens & Portable Screen' },
+                                                    { value: 'Lokasi Eksternal / Lapangan Kampus', label: 'Lokasi Eksternal / Lapangan Kampus' },
+                                                ]}
+                                                placeholder="Pilih Lokasi / Ruangan / Alat"
+                                                fullWidth
+                                            />
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+
+                                {/* Blok 2: Target Penyelesaian / Deadline (Pasca-Produksi / Editing) */}
+                                {mmButuhTargetPenyelesaian && (
+                                    <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-2xl space-y-3">
+                                        <div className="flex items-center space-x-2">
+                                            <Clock className="w-4 h-4 text-blue-700" />
+                                            <span className="text-[11px] font-bold text-blue-900 uppercase tracking-wider block">
+                                                Target Penyelesaian (Deadline Hasil Editing / Video)
+                                            </span>
+                                        </div>
+                                        <div className="flex items-start space-x-2 text-[11px] text-blue-800">
+                                            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-blue-600" />
+                                            <span>
+                                                Tentukan kapan hasil akhir dari video atau editing tersebut harus selesai dikerjakan oleh tim multimedia.
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                                Tanggal Target Selesai (Deadline) <span className="text-rose-500">*</span>
+                                            </label>
+                                            <input
+                                                type="date"
+                                                min={new Date().toISOString().split('T')[0]}
+                                                value={deadlineMm}
+                                                onChange={(e) => setDeadlineMm(e.target.value)}
+                                                required
+                                                className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>

@@ -343,7 +343,7 @@ class PermohonanController extends Controller
             if ($e->getMessage() === 'JADWAL_BENTROK') {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Jadwal yang Anda pilih bentrok dengan permohonan Multimedia lain yang sudah ada pada tanggal dan jam tersebut. Silakan pilih slot jam lain.',
+                    'message' => 'Jadwal yang Anda pilih bentrok dengan jadwal Multimedia yang sudah terkunci (berstatus Diproses) pada tanggal dan jam tersebut. Silakan pilih slot jam lain.',
                 ], 409); // HTTP 409 Conflict sesuai PRD FR-MM-05 / AC-07
             }
 
@@ -415,7 +415,7 @@ class PermohonanController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Unauthenticated'], 401);
         }
 
-        $permohonan = Permohonan::with(['service', 'user'])->findOrFail($id);
+        $permohonan = Permohonan::with(['service', 'user', 'multimediaDetail'])->findOrFail($id);
 
         // Otorisasi: Admin & SuperAdmin berhak untuk semua; PIC hanya untuk layanannya sendiri
         $isAuthorized = false;
@@ -450,8 +450,81 @@ class PermohonanController extends Controller
         $oldStatus = $permohonan->status;
         $newStatus = $request->status;
 
+        // Validasi Bentrok Jadwal Multimedia saat mengubah status menjadi 'Diproses' / 'Disetujui'
+        if (in_array($newStatus, ['Diproses', 'Disetujui']) && $permohonan->multimediaDetail) {
+            $mmDetail = $permohonan->multimediaDetail;
+            $tgl = $mmDetail->tanggal_pelaksanaan ? Carbon::parse($mmDetail->tanggal_pelaksanaan)->format('Y-m-d') : null;
+            $mulai = $mmDetail->jam_mulai;
+            $selesai = $mmDetail->jam_selesai;
+
+            if ($tgl && $mulai && $selesai) {
+                // Cek apakah slot ini sudah terkunci oleh permohonan lain yang berstatus Diproses / Disetujui / Selesai
+                $hasConflictWithLocked = $this->multimediaService->checkConflict(
+                    $tgl,
+                    $mulai,
+                    $selesai,
+                    $permohonan->id,
+                    true,
+                    ['Diproses', 'Disetujui', 'Selesai']
+                );
+
+                if ($hasConflictWithLocked) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Gagal mengubah status menjadi Diproses. Slot waktu ruangan/alat pada tanggal dan jam tersebut telah terkunci oleh permohonan lain yang sudah diproses terlebih dahulu.',
+                    ], 422);
+                }
+            }
+        }
+
         DB::transaction(function () use ($permohonan, $user, $oldStatus, $newStatus, $request) {
             $permohonan->status = $newStatus;
+
+            // Jika permohonan Multimedia diubah menjadi 'Diproses' / 'Disetujui':
+            // Otomatis tolak permohonan lain yang masih 'Diajukan' pada slot waktu yang sama (Requirement 3)
+            if (in_array($newStatus, ['Diproses', 'Disetujui']) && $permohonan->multimediaDetail) {
+                $mmDetail = $permohonan->multimediaDetail;
+                $tgl = $mmDetail->tanggal_pelaksanaan ? Carbon::parse($mmDetail->tanggal_pelaksanaan)->format('Y-m-d') : null;
+                $mulai = $mmDetail->jam_mulai;
+                $selesai = $mmDetail->jam_selesai;
+
+                if ($tgl && $mulai && $selesai) {
+                    $clashingRequests = $this->multimediaService->getConflictingPendingRequests(
+                        $tgl,
+                        $mulai,
+                        $selesai,
+                        $permohonan->id
+                    );
+
+                    $jamRange = substr($mulai, 0, 5) . ' - ' . substr($selesai, 0, 5);
+
+                    foreach ($clashingRequests as $clashItem) {
+                        $otherReq = Permohonan::find($clashItem->id);
+                        if ($otherReq && $otherReq->status === 'Diajukan') {
+                            $otherReq->status = 'Ditolak';
+                            $otherReq->save();
+
+                            $autoRejectNote = "Permohonan otomatis ditolak oleh sistem karena jadwal (tanggal {$tgl} pukul {$jamRange}) telah terkunci oleh permohonan {$permohonan->nomor_tiket} yang diproses terlebih dahulu.";
+
+                            StatusHistory::create([
+                                'permohonan_id' => $otherReq->id,
+                                'user_id' => $user->id,
+                                'status_sebelumnya' => 'Diajukan',
+                                'status_baru' => 'Ditolak',
+                                'catatan' => $autoRejectNote,
+                            ]);
+
+                            Notification::create([
+                                'user_id' => $otherReq->user_id,
+                                'permohonan_id' => $otherReq->id,
+                                'title' => "Permohonan Ditolak Otomatis (Slot Terkunci): {$otherReq->nomor_tiket}",
+                                'message' => "Permohonan Anda ditolak otomatis karena slot jadwal pada tanggal {$tgl} pukul {$jamRange} telah terkunci oleh permohonan lain ({$permohonan->nomor_tiket}) yang diproses terlebih dahulu.",
+                                'type' => 'danger',
+                            ]);
+                        }
+                    }
+                }
+            }
 
             if ($newStatus === 'Direvisi') {
                 $permohonan->catatan_revisi = $request->catatan;

@@ -599,24 +599,36 @@ function RequestFormDetail({ detail }) {
                             <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama Kegiatan / Program</span>
                             <span className="font-extrabold text-slate-900 text-xs">{formData?.nama_kegiatan || detail.judul_permohonan || '-'}</span>
                         </div>
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Tanggal Produksi / Pelaksanaan</span>
-                            <span className="font-bold text-slate-900">
-                                {formatDateDisplay(detail.multimedia_detail?.tanggal_pelaksanaan || formData?.tanggal_produksi || detail.tanggal_dibutuhkan)}
-                            </span>
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Waktu Operasional / Jam</span>
-                            <span className="font-bold text-slate-900">
-                                {detail.multimedia_detail ? `${detail.multimedia_detail.jam_mulai?.slice(0, 5)} - ${detail.multimedia_detail.jam_selesai?.slice(0, 5)} WIB (${formatDurasi(detail.multimedia_detail.durasi_menit)})` : (formData?.jam_mulai ? `${formData.jam_mulai} - ${formData.jam_selesai} WIB` : '-')}
-                            </span>
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Ruangan / Lokasi Alat</span>
-                            <span className="font-bold text-slate-900">
-                                {detail.multimedia_detail?.lokasi_alat || formData?.lokasi_produksi || 'Studio Podcast'}
-                            </span>
-                        </div>
+                        {(detail.multimedia_detail || formData?.tanggal_produksi) && (
+                            <>
+                                <div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Jadwal Syuting / Produksi</span>
+                                    <span className="font-bold text-slate-900">
+                                        {formatDateDisplay(detail.multimedia_detail?.tanggal_pelaksanaan || formData?.tanggal_produksi)}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Waktu Operasional / Booking</span>
+                                    <span className="font-bold text-slate-900">
+                                        {detail.multimedia_detail ? `${detail.multimedia_detail.jam_mulai?.slice(0, 5)} - ${detail.multimedia_detail.jam_selesai?.slice(0, 5)} WIB (${formatDurasi(detail.multimedia_detail.durasi_menit)})` : (formData?.jam_mulai ? `${formData.jam_mulai} - ${formData.jam_selesai} WIB` : '-')}
+                                    </span>
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Ruangan / Lokasi Alat</span>
+                                    <span className="font-bold text-slate-900">
+                                        {detail.multimedia_detail?.lokasi_alat || formData?.lokasi_produksi || '-'}
+                                    </span>
+                                </div>
+                            </>
+                        )}
+                        {(formData?.target_penyelesaian || formData?.deadline) && (
+                            <div>
+                                <span className="text-[10px] font-bold text-blue-600 uppercase block">Target Penyelesaian (Deadline Editor)</span>
+                                <span className="font-bold text-blue-900">
+                                    {formatDateDisplay(formData?.target_penyelesaian || formData?.deadline)}
+                                </span>
+                            </div>
+                        )}
                         <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase block">Output yang Diharapkan</span>
                             <span className="font-bold text-slate-900">

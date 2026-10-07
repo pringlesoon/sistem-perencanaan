@@ -80,7 +80,7 @@ export default function DateTimePicker({
 
                 if (clash) {
                     isConflict = true;
-                    conflictMsg = `Slot jam ini bentrok dengan jadwal terisi: ${clash.nomor_tiket} (${clash.jam_mulai.slice(0, 5)} - ${clash.jam_selesai.slice(0, 5)}).`;
+                    conflictMsg = `Slot jam ini bentrok dengan jadwal yang sudah terkunci: ${clash.nomor_tiket} (${clash.jam_mulai.slice(0, 5)} - ${clash.jam_selesai.slice(0, 5)}).`;
                 }
             }
         }
@@ -148,10 +148,10 @@ export default function DateTimePicker({
                             <span
                                 key={slot.id}
                                 className="px-2 py-1 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-semibold flex items-center space-x-1"
-                                title={`Dipesan: ${slot.nomor_tiket} (${slot.status})`}
+                                title={`Terkunci (Status: ${slot.status}): ${slot.nomor_tiket}`}
                             >
                                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                                <span>{slot.jam_mulai.slice(0, 5)} - {slot.jam_selesai.slice(0, 5)} (Terisi)</span>
+                                <span>{slot.jam_mulai.slice(0, 5)} - {slot.jam_selesai.slice(0, 5)} (Terkunci)</span>
                             </span>
                         ))}
                     </div>

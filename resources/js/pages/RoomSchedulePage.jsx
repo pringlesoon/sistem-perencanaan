@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import CustomSelect from '../components/CustomSelect';
 import api from '../services/api';
 import {
     Calendar as CalendarIcon,
@@ -23,7 +24,9 @@ import {
     List,
     Layers,
     ExternalLink,
-    Radio
+    Radio,
+    Mic,
+    Camera
 } from 'lucide-react';
 
 const HOURS = [
@@ -74,6 +77,20 @@ const DEFAULT_ROOMS = [
     'Ruang Mini Teater'
 ];
 
+const NEED_OPTIONS = [
+    { value: 'all', label: 'Semua Kebutuhan', icon: Layers },
+    { value: 'Podcast', label: 'Podcast', icon: Mic },
+    { value: 'Operator Live Streaming', label: 'Live Streaming', icon: Radio },
+    { value: 'Foto Dokumentasi', label: 'Foto Dokumentasi', icon: Camera },
+    { value: 'Video Dokumentasi', label: 'Video Dokumentasi', icon: Video },
+];
+
+const STATUS_OPTIONS = [
+    { value: 'all', label: 'Semua Status (Terkunci)', colorDot: 'bg-indigo-500' },
+    { value: 'Diproses', label: 'Diproses (Terkunci)', colorDot: 'bg-blue-500' },
+    { value: 'Selesai', label: 'Selesai (Terkonfirmasi)', colorDot: 'bg-emerald-500' },
+];
+
 function formatTime(val) {
     if (!val) return '--:--';
     return String(val).slice(0, 5);
@@ -105,7 +122,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
     const [loading, setLoading] = useState(false);
 
     // Filters
-    const [selectedLocation, setSelectedLocation] = useState('all');
+    const [selectedNeed, setSelectedNeed] = useState('all');
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -118,9 +135,9 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
         setLoading(true);
         try {
             const params = new URLSearchParams();
-            if (selectedLocation !== 'all') params.append('location', selectedLocation);
+            if (selectedNeed !== 'all') params.append('need', selectedNeed);
             if (selectedStatus !== 'all') params.append('status', selectedStatus);
-            if (searchQuery) params.append('search', searchQuery);
+            if (searchQuery.trim()) params.append('search', searchQuery.trim());
 
             const res = await api.get(`/multimedia/schedule?${params.toString()}`);
             if (res.data?.status === 'success') {
@@ -139,7 +156,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
 
     useEffect(() => {
         loadSchedules();
-    }, [selectedLocation, selectedStatus, searchQuery]);
+    }, [selectedNeed, selectedStatus, searchQuery]);
 
     // Navigation functions
     const goToToday = () => setCurrentDate(new Date());
@@ -257,10 +274,41 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
         return days;
     }, [currentDate]);
 
+    // Filter schedules locally for instant search and instant filter reaction
+    const filteredSchedules = useMemo(() => {
+        return schedules.filter(item => {
+            // Filter status
+            if (selectedStatus !== 'all' && item.status !== selectedStatus) return false;
+
+            // Filter jenis kebutuhan
+            if (selectedNeed !== 'all') {
+                const needs = Array.isArray(item.jenis_kebutuhan) ? item.jenis_kebutuhan : [item.jenis_kebutuhan];
+                const matchNeed = needs.some(n => String(n).toLowerCase().includes(selectedNeed.toLowerCase()))
+                    || String(item.judul_permohonan || '').toLowerCase().includes(selectedNeed.toLowerCase());
+                if (!matchNeed) return false;
+            }
+
+            // Search query (instant client-side filtering)
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase().trim();
+                const matchSearch =
+                    String(item.nomor_tiket || '').toLowerCase().includes(q) ||
+                    String(item.judul_permohonan || '').toLowerCase().includes(q) ||
+                    String(item.nama_kegiatan || '').toLowerCase().includes(q) ||
+                    String(item.nama_pemohon || '').toLowerCase().includes(q) ||
+                    String(item.unit_pemohon || '').toLowerCase().includes(q) ||
+                    String(item.lokasi_alat || '').toLowerCase().includes(q);
+                if (!matchSearch) return false;
+            }
+
+            return true;
+        });
+    }, [schedules, selectedStatus, selectedNeed, searchQuery]);
+
     // Group schedules by date
     const schedulesByDate = useMemo(() => {
         const map = {};
-        schedules.forEach(item => {
+        filteredSchedules.forEach(item => {
             if (!item.tanggal_pelaksanaan) return;
             const ds = item.tanggal_pelaksanaan;
             if (!map[ds]) map[ds] = [];
@@ -271,7 +319,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
             map[key].sort((a, b) => timeToMinutes(a.jam_mulai) - timeToMinutes(b.jam_mulai));
         });
         return map;
-    }, [schedules]);
+    }, [filteredSchedules]);
 
     // Today's summary metrics
     const todayStr = useMemo(() => {
@@ -396,40 +444,57 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
 
                 {/* Center / Right: Filters & View Switcher */}
                 <div className="flex flex-wrap items-center gap-2.5">
-                    {/* Filter Ruangan / Lokasi */}
-                    <div className="relative min-w-[160px] sm:min-w-[190px]">
-                        <select
-                            value={selectedLocation}
-                            onChange={(e) => setSelectedLocation(e.target.value)}
-                            className="w-full px-3 py-1.5 text-xs bg-slate-50 hover:bg-white border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                        >
-                            <option value="all">Semua Ruangan & Lokasi</option>
-                            {locations.map((loc, idx) => (
-                                <option key={idx} value={loc}>{loc}</option>
-                            ))}
-                        </select>
+                    {/* Instant Search Bar */}
+                    <div className="relative w-full sm:w-56">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Cari kegiatan, lokasi, PIC..."
+                            className="w-full pl-8 pr-7 py-2 text-xs bg-white hover:bg-slate-50/80 focus:bg-white border border-slate-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 rounded-xl font-medium text-slate-700 placeholder-slate-400 transition-all outline-none shadow-2xs"
+                        />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded-md transition-colors cursor-pointer"
+                                title="Hapus pencarian"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        )}
                     </div>
 
-                    {/* Filter Status */}
-                    <div className="relative min-w-[120px]">
-                        <select
+                    {/* Filter Jenis Kebutuhan (CustomSelect) */}
+                    <div className="w-full sm:w-48">
+                        <CustomSelect
+                            value={selectedNeed}
+                            onChange={(val) => setSelectedNeed(val)}
+                            options={NEED_OPTIONS}
+                            placeholder="Semua Kebutuhan"
+                            icon={Layers}
+                            fullWidth
+                        />
+                    </div>
+
+                    {/* Filter Status (CustomSelect) */}
+                    <div className="w-full sm:w-44">
+                        <CustomSelect
                             value={selectedStatus}
-                            onChange={(e) => setSelectedStatus(e.target.value)}
-                            className="w-full px-3 py-1.5 text-xs bg-slate-50 hover:bg-white border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                        >
-                            <option value="all">Semua Status</option>
-                            <option value="Diajukan">Diajukan</option>
-                            <option value="Diproses">Diproses</option>
-                            <option value="Selesai">Selesai</option>
-                        </select>
+                            onChange={(val) => setSelectedStatus(val)}
+                            options={STATUS_OPTIONS}
+                            placeholder="Semua Status"
+                            fullWidth
+                        />
                     </div>
 
                     {/* View Switcher (Google Calendar Tabs) */}
-                    <div className="flex items-center bg-slate-100 rounded-xl p-1 shadow-2xs border border-slate-200/60">
+                    <div className="flex items-center bg-slate-100/90 rounded-xl p-1 shadow-2xs border border-slate-200/60 shrink-0">
                         <button
                             type="button"
                             onClick={() => setViewMode('month')}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                                 viewMode === 'month' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
                             }`}
                         >
@@ -438,7 +503,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                         <button
                             type="button"
                             onClick={() => setViewMode('week')}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                                 viewMode === 'week' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
                             }`}
                         >
@@ -447,7 +512,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                         <button
                             type="button"
                             onClick={() => setViewMode('day')}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                                 viewMode === 'day' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
                             }`}
                         >
@@ -456,7 +521,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                         <button
                             type="button"
                             onClick={() => setViewMode('agenda')}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                                 viewMode === 'agenda' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
                             }`}
                         >
@@ -475,11 +540,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                 </div>
                 <div className="flex items-center space-x-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                    <span>Diproses / Aktif</span>
-                </div>
-                <div className="flex items-center space-x-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                    <span>Diajukan / Menunggu Approval</span>
+                    <span>Diproses / Slot Terkunci</span>
                 </div>
                 <div className="flex items-center space-x-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-slate-200 border border-slate-300"></span>
@@ -818,7 +879,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                 {/* 4. AGENDA VIEW */}
                 {viewMode === 'agenda' && (
                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-                        {schedules.length === 0 ? (
+                        {filteredSchedules.length === 0 ? (
                             <div className="text-center py-16 text-slate-400">
                                 <CalendarIcon className="w-10 h-10 mx-auto mb-2 opacity-30" />
                                 <h4 className="text-sm font-bold text-slate-700">Tidak ada jadwal peminjaman</h4>
