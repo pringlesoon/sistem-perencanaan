@@ -6,7 +6,22 @@ echo ========================================================
 echo        SAPT - Sistem Permohonan Terpusat
 echo        Database: SQLite (Tanpa XAMPP / Tanpa Herd)
 echo ========================================================
-echo.
+if not exist ".env" (
+    echo [PERINGATAN] File .env belum ditemukan!
+    echo Silakan jalankan file "setup-laptop-baru.bat" terlebih dahulu.
+    echo.
+    pause
+    exit /b
+)
+
+if not exist "vendor" (
+    echo [PERINGATAN] Folder vendor belum ditemukan!
+    echo Silakan jalankan file "setup-laptop-baru.bat" terlebih dahulu.
+    echo.
+    pause
+    exit /b
+)
+
 echo [1/2] Menyalakan server Laravel...
 echo [2/2] Browser akan terbuka otomatis dalam 2 detik...
 echo.
