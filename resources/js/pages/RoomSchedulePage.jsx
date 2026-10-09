@@ -328,7 +328,6 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
     }, []);
 
     const todaySchedules = schedulesByDate[todayStr] || [];
-    const activeRoomsToday = new Set(todaySchedules.map(s => s.lokasi_alat)).size;
 
     return (
         <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-5 h-full flex flex-col">
@@ -374,7 +373,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
             </div>
 
             {/* Top Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
                     <div className="space-y-0.5">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Jadwal Hari Ini</span>
@@ -382,16 +381,6 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                     </div>
                     <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                         <Clock className="w-5 h-5" />
-                    </div>
-                </div>
-
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-                    <div className="space-y-0.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ruangan Terpakai Hari Ini</span>
-                        <p className="text-lg font-black text-slate-900">{activeRoomsToday} Ruangan</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                        <Building2 className="w-5 h-5" />
                     </div>
                 </div>
 

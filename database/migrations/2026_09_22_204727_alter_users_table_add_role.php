@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             $table->string('username')->unique()->nullable()->after('name');
             $table->string('unit_kerja')->nullable()->after('email');
-            $table->enum('role', ['User', 'Admin', 'Approver', 'Verificator'])->default('User')->after('unit_kerja');
+            $table->string('role', 50)->default('User')->after('unit_kerja');
             
             // Kolom tambahan untuk integrasi LdapRecord
             $table->string('guid')->unique()->nullable();

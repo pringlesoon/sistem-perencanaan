@@ -60,7 +60,6 @@ export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobi
     if (role === 'PIC') {
         if (picCode === 'S') {
             navItems.push({ id: 'stock', label: 'Manajemen Stok', icon: Package });
-            navItems.push({ id: 'approvals', label: 'Persetujuan Kuota', icon: CheckSquare });
         }
         if (picCode === 'M') {
             navItems.push({ id: 'schedule-slots', label: 'Ketersediaan Slot Jam', icon: CalendarClock });

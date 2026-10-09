@@ -40,6 +40,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/requests', [PermohonanController::class, 'store']);
     Route::get('/requests/{id}', [PermohonanController::class, 'show']);
     Route::match(['patch', 'post'], '/requests/{id}/status', [PermohonanController::class, 'updateStatus']);
+    Route::post('/requests/{id}/confirm-quota-pic', [PermohonanController::class, 'confirmQuotaPic']);
     Route::post('/requests/{id}/approve', [PermohonanController::class, 'approveSuvenir']);
 
     // 5. Modul Notifikasi In-App

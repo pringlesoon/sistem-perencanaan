@@ -11,7 +11,9 @@ return new class extends Migration
     public function up(): void
     {
         // Change status_approval from ENUM to VARCHAR(50) to support 'Disetujui Sebagian' and avoid 1265 Data truncated warnings
-        DB::statement("ALTER TABLE request_suvenir_details MODIFY COLUMN status_approval VARCHAR(50) NOT NULL DEFAULT 'Menunggu Approval'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE request_suvenir_details MODIFY COLUMN status_approval VARCHAR(50) NOT NULL DEFAULT 'Menunggu Approval'");
+        }
     }
 
     /**
@@ -19,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE request_suvenir_details MODIFY COLUMN status_approval ENUM('Menunggu Approval', 'Disetujui', 'Ditolak') NOT NULL DEFAULT 'Menunggu Approval'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE request_suvenir_details MODIFY COLUMN status_approval ENUM('Menunggu Approval', 'Disetujui', 'Ditolak') NOT NULL DEFAULT 'Menunggu Approval'");
+        }
     }
 };

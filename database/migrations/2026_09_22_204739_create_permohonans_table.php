@@ -21,14 +21,7 @@ return new class extends Migration
             $table->date('tanggal_dibutuhkan')->nullable();
             
             // Status Workflow PRD (Diajukan -> Diproses -> Direvisi -> Selesai / Ditolak / Menunggu Approval Sebagian)
-            $table->enum('status', [
-                'Diajukan',
-                'Diproses',
-                'Direvisi',
-                'Menunggu Approval Sebagian',
-                'Selesai',
-                'Ditolak'
-            ])->default('Diajukan');
+            $table->string('status', 50)->default('Diajukan');
             
             $table->text('catatan_revisi')->nullable();
             $table->integer('lead_time_minutes')->nullable();

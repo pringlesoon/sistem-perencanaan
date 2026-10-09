@@ -5,6 +5,7 @@ const statusBadgeConfig = {
     'Diajukan': { bg: 'bg-amber-50 text-amber-800 border-amber-200', icon: Clock, dot: 'bg-amber-500' },
     'Diproses': { bg: 'bg-blue-50 text-blue-800 border-blue-200', icon: Clock, dot: 'bg-blue-500' },
     'Direvisi': { bg: 'bg-orange-50 text-orange-800 border-orange-200', icon: AlertTriangle, dot: 'bg-orange-500' },
+    'Menunggu Approval': { bg: 'bg-purple-50 text-purple-800 border-purple-200', icon: Clock, dot: 'bg-purple-500' },
     'Menunggu Approval Sebagian': { bg: 'bg-purple-50 text-purple-800 border-purple-200', icon: Clock, dot: 'bg-purple-500' },
     'Selesai': { bg: 'bg-emerald-50 text-emerald-800 border-emerald-200', icon: CheckCircle2, dot: 'bg-emerald-500' },
     'Ditolak': { bg: 'bg-rose-50 text-rose-800 border-rose-200', icon: XCircle, dot: 'bg-rose-500' },

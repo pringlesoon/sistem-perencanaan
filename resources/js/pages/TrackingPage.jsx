@@ -86,7 +86,7 @@ const DEFAULT_KANBAN_COLUMNS = [
 const SERVICE_STATUS_FLOWS = {
     D: ['Diajukan', 'Diproses', 'Direvisi', 'Selesai', 'Ditolak'],
     P: ['Diajukan', 'Pemeriksaan Konten', 'Publikasi', 'Selesai', 'Ditolak'],
-    S: ['Diajukan', 'Diproses', 'Menunggu Approval Sebagian', 'Selesai', 'Ditolak'],
+    S: ['Diajukan', 'Menunggu Approval', 'Diproses', 'Selesai', 'Ditolak'],
     M: ['Diajukan', 'Diproses', 'Selesai', 'Ditolak'],
     L: ['Diajukan', 'Diproses', 'Selesai', 'Ditolak'],
 };
@@ -108,8 +108,8 @@ const SERVICE_KANBAN = {
     ],
     S: [
         { key: 'Diajukan', label: 'Diajukan', color: 'amber', bgCard: 'bg-amber-50', borderColor: 'border-amber-200', headerBg: 'bg-amber-100', textColor: 'text-amber-800' },
+        { key: 'Menunggu Approval', label: 'Menunggu Approval', color: 'purple', bgCard: 'bg-purple-50', borderColor: 'border-purple-200', headerBg: 'bg-purple-100', textColor: 'text-purple-800' },
         { key: 'Diproses', label: 'Diproses', color: 'blue', bgCard: 'bg-blue-50', borderColor: 'border-blue-200', headerBg: 'bg-blue-100', textColor: 'text-blue-800' },
-        { key: 'Menunggu Approval Sebagian', label: 'Menunggu Approval', color: 'purple', bgCard: 'bg-purple-50', borderColor: 'border-purple-200', headerBg: 'bg-purple-100', textColor: 'text-purple-800' },
         { key: 'Selesai', label: 'Selesai', color: 'emerald', bgCard: 'bg-emerald-50', borderColor: 'border-emerald-200', headerBg: 'bg-emerald-100', textColor: 'text-emerald-800' },
         { key: 'Ditolak', label: 'Ditolak', color: 'rose', bgCard: 'bg-rose-50', borderColor: 'border-rose-200', headerBg: 'bg-rose-100', textColor: 'text-rose-800' },
     ],
@@ -129,6 +129,7 @@ const SERVICE_KANBAN = {
 
 const statusBadgeStyles = {
     'Diajukan': 'bg-amber-50 text-amber-800 border-amber-200',
+    'Menunggu Approval': 'bg-purple-50 text-purple-800 border-purple-200',
     'Diproses': 'bg-blue-50 text-blue-800 border-blue-200',
     'Direvisi': 'bg-orange-50 text-orange-800 border-orange-200',
     'Pemeriksaan Konten': 'bg-sky-50 text-sky-800 border-sky-200',
@@ -330,7 +331,7 @@ const getFullServiceName = (obj) => {
 };
 
 // Detail section that shows form-specific fields
-function RequestFormDetail({ detail }) {
+function RequestFormDetail({ detail, user, onRefresh }) {
     if (!detail) return null;
     const serviceCode = detail.service?.code || (detail.kategori === 'Desain' ? 'D' : detail.kategori === 'Publikasi' ? 'P' : detail.kategori === 'Suvenir' ? 'S' : detail.kategori === 'Multimedia' ? 'M' : detail.kategori === 'Liputan' ? 'L' : null);
 
@@ -344,6 +345,107 @@ function RequestFormDetail({ detail }) {
         if (!num) return null;
         const normalized = num.startsWith('0') ? '62' + num.slice(1) : num;
         return `https://wa.me/${normalized}`;
+    };
+
+    const isPicForS = (user?.role === 'PIC' && (user?.pic_service_code === 'S' || user?.username?.toLowerCase() === 'bagas')) || ['Admin', 'SuperAdmin'].includes(user?.role);
+    const isAdminApprover = ['Admin', 'SuperAdmin'].includes(user?.role);
+
+    const [inventoryStocks, setInventoryStocks] = useState({});
+    const [souvenirEditItems, setSouvenirEditItems] = useState([]);
+    const [picCatatan, setPicCatatan] = useState('');
+    const [submittingPic, setSubmittingPic] = useState(false);
+    const [adminCatatan, setAdminCatatan] = useState('');
+    const [submittingAdmin, setSubmittingAdmin] = useState(false);
+    const [actionMsg, setActionMsg] = useState(null);
+
+    useEffect(() => {
+        if (serviceCode === 'S') {
+            api.get('/inventory?kategori=suvenir')
+                .then(res => {
+                    if (res.data?.data) {
+                        const map = {};
+                        res.data.data.forEach(item => {
+                            map[item.nama_item] = item.stok_tersedia;
+                        });
+                        setInventoryStocks(map);
+                    }
+                })
+                .catch(err => console.error('Error fetching inventory:', err));
+        }
+    }, [detail?.id, serviceCode]);
+
+    useEffect(() => {
+        if (serviceCode === 'S') {
+            let initial = [];
+            if (Array.isArray(formData?.souvenir_items) && formData.souvenir_items.length > 0) {
+                initial = formData.souvenir_items.map(it => ({
+                    nama_item: it.nama_item,
+                    qty: parseInt(it.qty, 10) || 0,
+                    qty_disetujui: it.qty_disetujui !== undefined ? parseInt(it.qty_disetujui, 10) : (parseInt(it.qty, 10) || 0)
+                }));
+            } else if (detail.suvenir_detail) {
+                initial = [{
+                    nama_item: detail.suvenir_detail.nama_item || 'Suvenir Kampus',
+                    qty: parseInt(detail.suvenir_detail.qty_diminta, 10) || 0,
+                    qty_disetujui: detail.suvenir_detail.qty_disetujui_otomatis !== undefined ? parseInt(detail.suvenir_detail.qty_disetujui_otomatis, 10) : (parseInt(detail.suvenir_detail.qty_diminta, 10) || 0)
+                }];
+            }
+            setSouvenirEditItems(initial);
+            setPicCatatan(formData?.pic_verification_note || detail.suvenir_detail?.catatan_approver || '');
+            setAdminCatatan('');
+            setActionMsg(null);
+        }
+    }, [detail?.id, serviceCode, detail.form_data]);
+
+    const handleQtyChange = (idx, val) => {
+        const num = val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0);
+        setSouvenirEditItems(prev => {
+            const next = [...prev];
+            next[idx] = { ...next[idx], qty_disetujui: num };
+            return next;
+        });
+    };
+
+    const handleConfirmQuotaByPic = async () => {
+        setSubmittingPic(true);
+        setActionMsg(null);
+        try {
+            const payload = {
+                items: souvenirEditItems,
+                catatan: picCatatan,
+            };
+            const res = await api.post(`/requests/${detail.id}/confirm-quota-pic`, payload);
+            if (res.data?.status === 'success') {
+                setActionMsg({ type: 'success', text: 'Kuota berhasil dikonfirmasi dan diteruskan ke Admin untuk approval!' });
+                if (onRefresh) onRefresh();
+            }
+        } catch (err) {
+            console.error('Error confirming quota by PIC:', err);
+            setActionMsg({ type: 'error', text: err.response?.data?.message || 'Gagal mengonfirmasi kuota.' });
+        } finally {
+            setSubmittingPic(false);
+        }
+    };
+
+    const handleAdminApprovalDecision = async (decision) => {
+        setSubmittingAdmin(true);
+        setActionMsg(null);
+        try {
+            const payload = {
+                decision,
+                catatan: adminCatatan,
+            };
+            const res = await api.post(`/requests/${detail.id}/approve`, payload);
+            if (res.data?.status === 'success') {
+                setActionMsg({ type: 'success', text: `Permohonan berhasil ${decision === 'approve' ? 'disetujui' : 'ditolak'}!` });
+                if (onRefresh) onRefresh();
+            }
+        } catch (err) {
+            console.error('Error submitting admin decision:', err);
+            setActionMsg({ type: 'error', text: err.response?.data?.message || 'Gagal memproses persetujuan.' });
+        } finally {
+            setSubmittingAdmin(false);
+        }
     };
 
     return (
@@ -495,81 +597,209 @@ function RequestFormDetail({ detail }) {
                     </div>
 
                     {/* Keperluan Souvenir (Jenis & Qty) */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2.5">
                         <div className="flex items-center justify-between">
                             <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wider">Keperluan Souvenir yang Diajukan</p>
-                            <span className="px-2 py-0.5 bg-amber-200 text-amber-950 font-black text-[10px] rounded-lg">
-                                Total: {Array.isArray(formData?.souvenir_items) ? formData.souvenir_items.reduce((acc, curr) => acc + (parseInt(curr.qty, 10) || 0), 0) : (detail.suvenir_detail?.qty_diminta || 0)} Unit
-                            </span>
+                            <div className="flex items-center space-x-2">
+                                <span className="px-2 py-0.5 bg-amber-200 text-amber-950 font-black text-[10px] rounded-lg">
+                                    Total Diminta: {souvenirEditItems.reduce((acc, curr) => acc + (parseInt(curr.qty, 10) || 0), 0)} Unit
+                                </span>
+                                {detail.status !== 'Diajukan' && (
+                                    <span className="px-2 py-0.5 bg-emerald-200 text-emerald-950 font-black text-[10px] rounded-lg">
+                                        Total Disetujui: {souvenirEditItems.reduce((acc, curr) => acc + (parseInt(curr.qty_disetujui, 10) || 0), 0)} Unit
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
-                        {Array.isArray(formData?.souvenir_items) && formData.souvenir_items.length > 0 ? (
-                            <div className="bg-white rounded-xl border border-amber-200 overflow-hidden shadow-2xs">
-                                <table className="w-full text-left text-xs">
-                                    <thead className="bg-amber-100/70 text-amber-900 font-bold border-b border-amber-200 text-[11px]">
-                                        <tr>
-                                            <th className="px-3 py-2">No</th>
-                                            <th className="px-3 py-2">Nama Item Suvenir</th>
-                                            <th className="px-3 py-2 text-right">Jumlah Unit</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {formData.souvenir_items.map((it, idx) => (
+                        {actionMsg && (
+                            <div className={`p-3 rounded-xl text-xs font-semibold ${actionMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
+                                {actionMsg.text}
+                            </div>
+                        )}
+
+                        <div className="bg-white rounded-xl border border-amber-200 overflow-hidden shadow-2xs">
+                            <table className="w-full text-left text-xs">
+                                <thead className="bg-amber-100/70 text-amber-900 font-bold border-b border-amber-200 text-[11px]">
+                                    <tr>
+                                        <th className="px-3 py-2 w-10">No</th>
+                                        <th className="px-3 py-2">Nama Item Suvenir</th>
+                                        <th className="px-3 py-2 text-center w-24">Jumlah Diminta</th>
+                                        <th className="px-3 py-2 text-center w-28">Stok Gudang</th>
+                                        <th className="px-3 py-2 text-right w-36">
+                                            {detail.status === 'Diajukan' && isPicForS ? 'Disetujui PIC' : 'Disetujui'}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {souvenirEditItems.map((it, idx) => {
+                                        const stock = inventoryStocks[it.nama_item];
+                                        const isLowStock = stock !== undefined && stock < it.qty;
+                                        return (
                                             <tr key={idx} className="hover:bg-amber-50/40">
-                                                <td className="px-3 py-2 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
-                                                <td className="px-3 py-2 font-bold text-slate-800">{it.nama_item}</td>
-                                                <td className="px-3 py-2 text-right font-mono font-black text-amber-900">
+                                                <td className="px-3 py-2.5 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                                                <td className="px-3 py-2.5 font-bold text-slate-800">
+                                                    {it.nama_item}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-center font-mono font-bold text-slate-700">
                                                     {it.qty} unit
                                                 </td>
+                                                <td className="px-3 py-2.5 text-center">
+                                                    {stock !== undefined ? (
+                                                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${isLowStock ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'}`}>
+                                                            {stock} unit
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[10px] text-slate-400 font-medium">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-right">
+                                                    {detail.status === 'Diajukan' && isPicForS ? (
+                                                        <div className="flex items-center justify-end space-x-1">
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={it.qty_disetujui}
+                                                                onChange={(e) => handleQtyChange(idx, e.target.value)}
+                                                                className="w-16 px-2 py-1 text-xs font-mono font-black text-amber-950 bg-amber-50 rounded-lg border border-amber-300 text-right focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                                                            />
+                                                            <span className="text-[11px] font-bold text-amber-900">unit</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="font-mono font-black text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                                                            {it.qty_disetujui !== undefined ? it.qty_disetujui : it.qty} unit
+                                                        </span>
+                                                    )}
+                                                </td>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            detail.suvenir_detail && (
-                                <div className="bg-white p-3 rounded-xl border border-amber-100 flex items-center justify-between">
-                                    <div>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama Item Suvenir</span>
-                                        <span className="font-black text-slate-900 text-sm">{detail.suvenir_detail.nama_item || 'Suvenir Kampus'}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="font-mono font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                                            {detail.suvenir_detail.qty_diminta} unit
-                                        </span>
-                                    </div>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Aksi PIC saat Status Diajukan */}
+                        {detail.status === 'Diajukan' && isPicForS && (
+                            <div className="p-3.5 bg-amber-100/60 rounded-xl border border-amber-300/80 space-y-2.5 mt-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center space-x-1.5">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-amber-700" />
+                                        <span>Konfirmasi Alokasi Kuota oleh PIC</span>
+                                    </span>
+                                    <span className="text-[11px] font-bold text-amber-900">
+                                        Total Dialokasikan: <strong>{souvenirEditItems.reduce((acc, c) => acc + (c.qty_disetujui || 0), 0)} unit</strong>
+                                    </span>
                                 </div>
-                            )
+                                <p className="text-[11px] text-amber-800">
+                                    Atur jumlah unit yang disetujui pada tabel di atas sesuai stok fisik di gudang, lalu klik tombol di bawah untuk meneruskan ke Admin untuk persetujuan.
+                                </p>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-amber-900 uppercase mb-1">
+                                        Catatan Verifikasi PIC (Opsional):
+                                    </label>
+                                    <textarea
+                                        rows={2}
+                                        value={picCatatan}
+                                        onChange={(e) => setPicCatatan(e.target.value)}
+                                        placeholder="Contoh: Stok Goodiebag mencukupi, Brosur S1 disesuaikan kuota..."
+                                        className="w-full px-3 py-1.5 text-xs bg-white rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 placeholder:text-slate-400 outline-none"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmQuotaByPic}
+                                    disabled={submittingPic}
+                                    className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+                                >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    <span>{submittingPic ? 'Menyimpan & Meneruskan...' : 'Konfirmasi Kuota & Teruskan ke Admin'}</span>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Aksi Admin saat Status Menunggu Approval */}
+                        {detail.status === 'Menunggu Approval' && (
+                            <div className="space-y-2 mt-2">
+                                {(detail.suvenir_detail?.catatan_approver || formData?.pic_verification_note) && (
+                                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs">
+                                        <span className="font-bold text-amber-900 block mb-0.5">Catatan Verifikasi dari PIC:</span>
+                                        <p className="text-slate-700">{detail.suvenir_detail?.catatan_approver || formData?.pic_verification_note}</p>
+                                    </div>
+                                )}
+
+                                {isAdminApprover ? (
+                                    <div className="p-4 bg-purple-50/80 rounded-xl border border-purple-300 space-y-3">
+                                        <div>
+                                            <h5 className="font-bold text-purple-950 text-xs">Persetujuan Permohonan oleh Admin / Pimpinan</h5>
+                                            <p className="text-[11px] text-purple-800 mt-0.5">
+                                                Menyetujui permohonan ini akan mengubah status menjadi <strong>Diproses</strong> dan otomatis memotong stok barang di inventaris sesuai kuota PIC.
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-purple-900 uppercase mb-1">
+                                                Catatan Admin (Opsional):
+                                            </label>
+                                            <textarea
+                                                rows={2}
+                                                value={adminCatatan}
+                                                onChange={(e) => setAdminCatatan(e.target.value)}
+                                                placeholder="Contoh: Disetujui untuk kegiatan promosi kampus..."
+                                                className="w-full px-3 py-1.5 text-xs bg-white rounded-xl border border-purple-300 focus:ring-2 focus:ring-purple-500 placeholder:text-slate-400 outline-none"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2 pt-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleAdminApprovalDecision('approve')}
+                                                disabled={submittingAdmin}
+                                                className="flex-1 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                                            >
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                <span>{submittingAdmin ? 'Memproses...' : 'Setujui (Approve & Potong Stok)'}</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleAdminApprovalDecision('reject')}
+                                                disabled={submittingAdmin}
+                                                className="py-2.5 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                                            >
+                                                <XCircle className="w-4 h-4" />
+                                                <span>Tolak Permohonan</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 text-xs text-purple-900 flex items-center space-x-2">
+                                        <Clock className="w-4 h-4 text-purple-600 shrink-0" />
+                                        <span>Kuota suvenir telah diverifikasi oleh PIC. Saat ini sedang menunggu persetujuan (approval) dari Admin.</span>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
 
-                    {/* Status Approval Kuota Suvenir */}
-                    {detail.suvenir_detail && (
-                        <div className="space-y-1.5 pt-1">
-                            <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wider">Status Persetujuan Kuota Suvenir</p>
-                            <div className="grid grid-cols-2 gap-2 text-center">
-                                <div className="p-2.5 bg-white rounded-xl border border-amber-200">
-                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Total Diminta</p>
-                                    <p className="text-base font-black text-slate-900 mt-0.5">{detail.suvenir_detail.qty_diminta} unit</p>
-                                </div>
-                                <div className="p-2.5 bg-white rounded-xl border border-amber-200">
-                                    <p className="text-[10px] text-amber-800 font-bold uppercase">Status Persetujuan</p>
-                                    <p className="text-xs font-black text-amber-900 mt-1">
-                                        {detail.suvenir_detail.status_approval === 'Disetujui' ? `${detail.suvenir_detail.qty_diminta} unit (Disetujui Penuh)` :
-                                            detail.suvenir_detail.status_approval === 'Disetujui Sebagian' ? `${detail.suvenir_detail.qty_disetujui_otomatis} unit (Disetujui Sebagian)` :
-                                                detail.suvenir_detail.status_approval === 'Ditolak' ? 'Ditolak' :
-                                                    'Menunggu Verifikasi PIC'}
-                                    </p>
-                                </div>
+                    {/* Status Ringkasan Kuota Suvenir */}
+                    <div className="space-y-1.5 pt-1">
+                        <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wider">Status Persetujuan Kuota Suvenir</p>
+                        <div className="grid grid-cols-2 gap-2 text-center">
+                            <div className="p-2.5 bg-white rounded-xl border border-amber-200">
+                                <p className="text-[10px] text-slate-500 font-bold uppercase">Total Diminta</p>
+                                <p className="text-base font-black text-slate-900 mt-0.5">
+                                    {souvenirEditItems.reduce((acc, curr) => acc + (parseInt(curr.qty, 10) || 0), 0)} unit
+                                </p>
                             </div>
-                            {detail.suvenir_detail?.catatan_approver && (
-                                <div className="p-3 bg-white rounded-xl border border-amber-200 text-[11px] text-slate-700">
-                                    <span className="font-bold text-amber-900 block mb-0.5">Catatan Persetujuan PIC / Approver:</span>
-                                    <span>{detail.suvenir_detail.catatan_approver}</span>
-                                </div>
-                            )}
+                            <div className="p-2.5 bg-white rounded-xl border border-amber-200">
+                                <p className="text-[10px] text-amber-800 font-bold uppercase">Status Persetujuan</p>
+                                <p className="text-xs font-black text-amber-900 mt-1">
+                                    {detail.status === 'Diajukan' ? 'Menunggu Verifikasi PIC' :
+                                        detail.status === 'Menunggu Approval' ? 'Menunggu Approval Admin' :
+                                            detail.status === 'Diproses' ? `${souvenirEditItems.reduce((acc, curr) => acc + (parseInt(curr.qty_disetujui, 10) || 0), 0)} unit (Disetujui Admin)` :
+                                                detail.status === 'Selesai' ? `${souvenirEditItems.reduce((acc, curr) => acc + (parseInt(curr.qty_disetujui, 10) || 0), 0)} unit (Selesai)` :
+                                                    detail.status === 'Ditolak' ? 'Ditolak' : detail.status}
+                                </p>
+                            </div>
                         </div>
-                    )}
+                    </div>
                 </div>
             )}
 
@@ -1593,7 +1823,16 @@ export default function TrackingPage({ defaultSelectedId }) {
                         {/* Modal Body */}
                         <div className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
                             {/* Form-specific detail */}
-                            <RequestFormDetail detail={selectedDetail} />
+                            <RequestFormDetail
+                                detail={selectedDetail}
+                                user={user}
+                                onRefresh={() => {
+                                    loadRequests();
+                                    if (selectedDetail?.id) {
+                                        openDetail(selectedDetail.id);
+                                    }
+                                }}
+                            />
 
                             {/* Attachments */}
                             {selectedDetail.attachments?.length > 0 && (

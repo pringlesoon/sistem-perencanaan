@@ -201,9 +201,8 @@ class PermohonanController extends Controller
                     }
                 }
 
-                // Tentukan Status Awal & Perhitungan Kuota Suvenir
+                // Tentukan Status Awal & Ringkasan Suvenir
                 $initialStatus = 'Diajukan';
-                $suvenirCalc = null;
                 $suvenirSummaryName = $request->nama_item;
                 $suvenirTotalQty = (int) $request->qty_diminta;
 
@@ -211,21 +210,22 @@ class PermohonanController extends Controller
                     if (!empty($formData['souvenir_items']) && is_array($formData['souvenir_items'])) {
                         $itemsSummary = [];
                         $calcTotal = 0;
-                        foreach ($formData['souvenir_items'] as $sItem) {
+                        foreach ($formData['souvenir_items'] as &$sItem) {
                             $q = (int) ($sItem['qty'] ?? 0);
                             if ($q > 0) {
                                 $calcTotal += $q;
                                 $itemsSummary[] = "{$sItem['nama_item']} ({$q})";
+                                // Default unit disetujui sama dengan yang diajukan sebelum diverifikasi PIC
+                                $sItem['qty_disetujui'] = $q;
                             }
                         }
+                        unset($sItem);
                         if ($calcTotal > 0) {
                             $suvenirTotalQty = $calcTotal;
                             $suvenirSummaryName = implode(', ', $itemsSummary);
                         }
                     }
-
-                    $suvenirCalc = $this->suvenirService->calculateQuota($suvenirTotalQty > 0 ? $suvenirTotalQty : 1);
-                    $initialStatus = $suvenirCalc['initial_status'];
+                    $initialStatus = 'Diajukan';
                 }
 
                 // Buat Nomor Tiket Unik
@@ -262,38 +262,34 @@ class PermohonanController extends Controller
                 }
 
                 // Simpan Detail Suvenir
-                if ($request->service_code === 'S' && $suvenirCalc) {
+                if ($request->service_code === 'S') {
                     RequestSuvenirDetail::create([
                         'permohonan_id' => $permohonan->id,
-                        'nama_item' => $suvenirSummaryName ?? 'Suvenir Paket Humas',
-                        'qty_diminta' => $suvenirCalc['qty_diminta'],
-                        'qty_disetujui_otomatis' => $suvenirCalc['qty_disetujui_otomatis'],
-                        'qty_perlu_approval' => $suvenirCalc['qty_perlu_approval'],
-                        'status_approval' => ($suvenirCalc['qty_perlu_approval'] > 0) ? 'Menunggu Approval' : 'Disetujui',
+                        'nama_item' => $suvenirSummaryName ?? 'Suvenir Kampus',
+                        'qty_diminta' => $suvenirTotalQty > 0 ? $suvenirTotalQty : 1,
+                        'qty_disetujui_otomatis' => $suvenirTotalQty > 0 ? $suvenirTotalQty : 1,
+                        'qty_perlu_approval' => $suvenirTotalQty > 0 ? $suvenirTotalQty : 1,
+                        'status_approval' => 'Menunggu Verifikasi PIC',
                     ]);
 
-                    // Jika ada kuota yang perlu approval, kirim notifikasi ke seluruh SuperAdmin (FR-SV-04)
-                    if ($suvenirCalc['qty_perlu_approval'] > 0) {
-                        $approvers = User::where('role', 'SuperAdmin')->get();
-                        foreach ($approvers as $approver) {
-                            Notification::create([
-                                'user_id' => $approver->id,
-                                'permohonan_id' => $permohonan->id,
-                                'title' => "Permintaan Approval Suvenir: {$nomorTiket}",
-                                'message' => "Pengajuan {$suvenirCalc['qty_diminta']} unit {$request->nama_item} oleh {$user->name} ({$suvenirCalc['qty_perlu_approval']} unit memerlukan persetujuan).",
-                                'type' => 'warning',
-                            ]);
-                        }
+                    // Notifikasi ke PIC Alat Promosi & Admin
+                    $pics = User::where('role', 'PIC')->where('pic_service_code', 'S')->get();
+                    if ($pics->isEmpty()) {
+                        $pics = User::whereIn('role', ['Admin', 'SuperAdmin'])->get();
+                    }
+                    foreach ($pics as $picUser) {
+                        Notification::create([
+                            'user_id' => $picUser->id,
+                            'permohonan_id' => $permohonan->id,
+                            'title' => "Permohonan Alat Promosi Baru: {$nomorTiket}",
+                            'message' => "Pengajuan {$suvenirTotalQty} unit suvenir oleh {$user->name}. Silakan periksa ketersediaan stok dan atur kuota unit yang disetujui.",
+                            'type' => 'info',
+                        ]);
                     }
                 }
 
                 // Simpan Entri Status History Awal (Append-Only)
                 $historyNote = 'Permohonan diajukan oleh pemohon melalui sistem SAPT.';
-                if ($request->service_code === 'S' && $suvenirCalc && $suvenirCalc['qty_perlu_approval'] > 0) {
-                    $historyNote = "{$suvenirCalc['qty_disetujui_otomatis']} unit disetujui otomatis. {$suvenirCalc['qty_perlu_approval']} unit masuk ke antrean persetujuan Kepala Divisi.";
-                } elseif ($request->service_code === 'S' && $suvenirCalc && $suvenirCalc['qty_perlu_approval'] === 0) {
-                    $historyNote = "Permintaan {$suvenirCalc['qty_diminta']} unit suvenir disetujui otomatis oleh sistem (di bawah batas limit). Status langsung Diproses.";
-                }
 
                 StatusHistory::create([
                     'permohonan_id' => $permohonan->id,
@@ -593,8 +589,48 @@ class PermohonanController extends Controller
     }
 
     /**
-     * Keputusan Persetujuan Suvenir (Super Admin / PIC Alat Promosi)
-     * Mendukung Persetujuan Penuh, Persetujuan Sebagian, dan Penolakan
+     * PIC Mengonfirmasi Kuota dan Meneruskan ke Admin untuk Approval
+     */
+    public function confirmQuotaPic(Request $request, int $id): JsonResponse
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthenticated'], 401);
+        }
+
+        $permohonan = Permohonan::where('id', $id)->firstOrFail();
+
+        $canManage = $user->isSuperAdmin() || $user->isAdmin() || ($user->role === 'PIC' && $user->pic_service_code === 'S');
+        if (!$canManage) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akses ditolak. Hanya PIC Alat Promosi atau Admin yang berhak memverifikasi kuota ini.',
+            ], 403);
+        }
+
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.nama_item' => 'required|string',
+            'items.*.qty_disetujui' => 'required|integer|min:0',
+            'catatan' => 'nullable|string',
+        ]);
+
+        $updated = $this->suvenirService->confirmQuotaByPic(
+            $permohonan,
+            $user,
+            $request->items,
+            $request->catatan
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Kuota suvenir berhasil diverifikasi dan diteruskan ke Admin untuk approval.',
+            'data' => $updated,
+        ]);
+    }
+
+    /**
+     * Keputusan Approval Suvenir oleh Admin / Super Admin (Setuju / Tolak)
      */
     public function approveSuvenir(Request $request, int $id): JsonResponse
     {
@@ -605,18 +641,17 @@ class PermohonanController extends Controller
 
         $permohonan = Permohonan::where('id', $id)->firstOrFail();
 
-        $canApprove = $user->isSuperAdmin() || ($user->role === 'PIC' && $user->pic_service_code === 'S') || $user->isAdmin();
+        $canApprove = $user->isSuperAdmin() || $user->isAdmin();
         if (!$canApprove) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Akses ditolak. Hanya Super Admin atau PIC Alat Promosi yang berhak memproses persetujuan ini.',
+                'message' => 'Akses ditolak. Hanya Admin atau Super Admin yang berhak memberikan persetujuan (approval) akhir.',
             ], 403);
         }
 
         $request->validate([
-            'decision' => 'required|string|in:approve,partial,reject',
-            'qty_disetujui' => 'nullable|integer|min:1',
-            'catatan' => ($request->decision === 'partial' || $user->role === 'PIC') ? 'required|string|min:3' : 'nullable|string',
+            'decision' => 'required|string|in:approve,reject',
+            'catatan' => 'nullable|string',
         ]);
 
         if ($permohonan->kategori !== 'Suvenir' && $permohonan->service?->code !== 'S') {
@@ -630,19 +665,14 @@ class PermohonanController extends Controller
             $permohonan,
             $user,
             $request->decision,
-            $request->catatan,
-            $request->qty_disetujui ? (int)$request->qty_disetujui : null
+            $request->catatan
         );
 
-        $actionText = match ($request->decision) {
-            'approve' => 'disetujui penuh',
-            'partial' => 'disetujui sebagian (' . $request->qty_disetujui . ' unit)',
-            default => 'ditolak'
-        };
+        $actionText = $request->decision === 'approve' ? 'disetujui' : 'ditolak';
 
         return response()->json([
             'status' => 'success',
-            'message' => "Persetujuan kuota suvenir telah berhasil diproses ({$actionText}).",
+            'message' => "Permohonan suvenir telah berhasil {$actionText}.",
             'data' => $updatedPermohonan,
         ]);
     }

@@ -11,11 +11,15 @@ return new class extends Migration
         DB::table('users')->whereIn('role', ['Approver', 'Verificator'])->update(['role' => 'User']);
 
         // Update the role enum to remove Approver and Verificator
-        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('User', 'Admin', 'SuperAdmin', 'PIC') DEFAULT 'User'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('User', 'Admin', 'SuperAdmin', 'PIC') DEFAULT 'User'");
+        }
     }
 
     public function down()
     {
-        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('User', 'Admin', 'SuperAdmin', 'PIC', 'Approver', 'Verificator') DEFAULT 'User'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('User', 'Admin', 'SuperAdmin', 'PIC', 'Approver', 'Verificator') DEFAULT 'User'");
+        }
     }
 };

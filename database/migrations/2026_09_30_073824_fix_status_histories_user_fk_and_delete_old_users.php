@@ -22,7 +22,9 @@ return new class extends Migration
         });
 
         // 2. Change permohonans.status to varchar(50) so it supports any service workflow statuses
-        \Illuminate\Support\Facades\DB::statement("ALTER TABLE `permohonans` MODIFY `status` VARCHAR(50) NOT NULL DEFAULT 'Diajukan'");
+        if (\Illuminate\Support\Facades\DB::getDriverName() === 'mysql') {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `permohonans` MODIFY `status` VARCHAR(50) NOT NULL DEFAULT 'Diajukan'");
+        }
 
         // 3. Delete old users: Dr. Budi Santoso (budi) and Dina Mariana (dina)
         \App\Models\User::whereIn('username', ['budi', 'dina'])->delete();

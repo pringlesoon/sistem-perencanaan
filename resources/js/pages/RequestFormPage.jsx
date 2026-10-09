@@ -1348,19 +1348,12 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                             <label className="block text-[11px] font-bold text-slate-700 mb-1">
                                                 Lokasi Produksi / Ruangan / Alat
                                             </label>
-                                            <CustomSelect
+                                            <input
+                                                type="text"
                                                 value={lokasiProduksiMm}
-                                                onChange={(val) => setLokasiProduksiMm(val)}
-                                                options={[
-                                                    { value: 'Studio Podcast 1 (Lantai 2)', label: 'Studio Podcast 1 (Lantai 2)' },
-                                                    { value: 'Studio Podcast 2 (Lantai 3)', label: 'Studio Podcast 2 (Lantai 3)' },
-                                                    { value: 'Paket Kamera Video Sony Cinema & Wireless Mic', label: 'Paket Kamera Video Sony Cinema & Wireless Mic' },
-                                                    { value: 'Set Lighting Studio & Green Screen', label: 'Set Lighting Studio & Green Screen' },
-                                                    { value: 'Proyektor 5000 Lumens & Portable Screen', label: 'Proyektor 5000 Lumens & Portable Screen' },
-                                                    { value: 'Lokasi Eksternal / Lapangan Kampus', label: 'Lokasi Eksternal / Lapangan Kampus' },
-                                                ]}
-                                                placeholder="Pilih Lokasi / Ruangan / Alat"
-                                                fullWidth
+                                                onChange={(e) => setLokasiProduksiMm(e.target.value)}
+                                                placeholder="Ketik lokasi produksi, ruangan, atau alat yang dibutuhkan..."
+                                                className="w-full px-3.5 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-400 outline-none transition-colors"
                                             />
                                         </div>
                                     </div>
