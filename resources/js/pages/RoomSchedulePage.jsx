@@ -340,7 +340,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                         </div>
                         <div>
                             <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                                Ketersediaan Slot Jam
+                                Kalender Layanan
                             </h2>
                             <p className="text-xs text-slate-500 mt-0.5">
                                 Penjadwalan & Peminjaman Ruangan, Studio Podcast, dan Fasilitas Multimedia Universitas YARSI.
@@ -349,7 +349,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                     </div>
                 </div>
 
-                {/* Right Action: Booking Shortcut for User */}
+                {/* Right Action: Shortcut Pengajuan Permohonan for User */}
                 <div className="flex flex-wrap items-center gap-2.5">
                     {['User', 'Admin', 'SuperAdmin'].includes(user?.role) && onNavigateToRequest && (
                         <button
@@ -376,8 +376,9 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
                     <div className="space-y-0.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Jadwal Hari Ini</span>
-                        <p className="text-lg font-black text-slate-900">{todaySchedules.length} Kegiatan</p>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Jadwal Penggunaan Hari Ini</span>
+                        <p className="text-lg font-black text-slate-900 leading-tight">{todaySchedules.length} Jadwal Penggunaan</p>
+                        <p className="text-[10px] font-medium text-slate-400">Hari Ini</p>
                     </div>
                     <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                         <Clock className="w-5 h-5" />
@@ -386,8 +387,9 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
 
                 <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
                     <div className="space-y-0.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Reservasi Terjadwal</span>
-                        <p className="text-lg font-black text-slate-900">{schedules.length} Pemesanan</p>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Permohonan Terjadwal</span>
+                        <p className="text-lg font-black text-slate-900 leading-tight">{schedules.length} Permohonan</p>
+                        <p className="text-[10px] font-medium text-slate-400">Bulan Ini</p>
                     </div>
                     <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                         <Video className="w-5 h-5" />
@@ -853,7 +855,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                                                         <span>Slot Tersedia & Kosong (Pukul {hour} WIB)</span>
                                                     </div>
                                                     <span className="text-[11px] font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        Klik untuk booking / cek slot →
+                                                        Klik untuk ajukan permohonan / cek slot →
                                                     </span>
                                                 </div>
                                             )}
@@ -896,7 +898,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                                                     {isCurrent && <span className="text-[9px] bg-white text-indigo-700 px-1.5 py-0.2 rounded-md">Hari Ini</span>}
                                                 </div>
                                                 <div className="flex-1 h-px bg-slate-200"></div>
-                                                <span className="text-xs font-bold text-slate-400">{items.length} Sesi Peminjaman</span>
+                                                <span className="text-xs font-bold text-slate-400">{items.length} Jadwal Penggunaan</span>
                                             </div>
 
                                             {/* List cards */}
@@ -1137,7 +1139,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                                     className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
                                 >
                                     <Plus className="w-4 h-4" />
-                                    <span>Ajukan Peminjaman</span>
+                                    <span>Ajukan Permohonan</span>
                                 </button>
                             )}
                         </div>

@@ -618,8 +618,8 @@ function RequestFormDetail({ detail, user, onRefresh }) {
                             </div>
                         )}
 
-                        <div className="bg-white rounded-xl border border-amber-200 overflow-hidden shadow-2xs">
-                            <table className="w-full text-left text-xs">
+                        <div className="bg-white rounded-xl border border-amber-200 overflow-x-auto custom-scrollbar shadow-2xs">
+                            <table className="w-full min-w-[480px] text-left text-xs">
                                 <thead className="bg-amber-100/70 text-amber-900 font-bold border-b border-amber-200 text-[11px]">
                                     <tr>
                                         <th className="px-3 py-2 w-10">No</th>
@@ -1593,123 +1593,272 @@ export default function TrackingPage({ defaultSelectedId }) {
                     </div>
                 </div>
             ) : viewMode === 'table' ? (
-                /* TABLE VIEW */
+                /* TABLE VIEW — Fully Responsive with Mobile Card List & Desktop Sticky Table */
                 <div className="flex-1 overflow-auto">
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                        <table className="w-full text-xs">
-                            <thead>
-                                <tr className="bg-slate-50 border-b border-slate-100">
-                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">No. Tiket</th>
-                                    <th
-                                        onClick={() => setDateSort(prev => prev === 'desc' ? 'asc' : 'desc')}
-                                        className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] cursor-pointer hover:text-indigo-600 transition-colors select-none group"
-                                        title="Klik untuk mengubah pengurutan tanggal (Terbaru / Terlama)"
-                                    >
-                                        <div className="flex items-center space-x-1">
-                                            <span>Tanggal</span>
-                                            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 inline" />
-                                            <span className="text-[9px] font-semibold text-indigo-600">
-                                                ({dateSort === 'desc' ? 'Terbaru' : 'Terlama'})
-                                            </span>
-                                        </div>
-                                    </th>
-                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Layanan</th>
-                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Judul</th>
-                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Pemohon</th>
-                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Status</th>
-                                    <th className="text-right px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {loading ? (
-                                    <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">
-                                        <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
-                                        <p>Memuat data...</p>
-                                    </td></tr>
-                                ) : processedRequests.length === 0 ? (
-                                    <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">
-                                        <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                        <p className="text-xs font-medium">Tidak ada permohonan yang sesuai filter</p>
-                                    </td></tr>
-                                ) : processedRequests.map(req => {
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
+                        {/* Top Table Meta Bar */}
+                        <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center space-x-2">
+                                <span className="font-bold text-slate-700">Daftar Permohonan</span>
+                                <span className="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 font-black text-[11px]">
+                                    {processedRequests.length} data
+                                </span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-[11px] text-slate-500">
+                                <span>Urutan Tanggal:</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setDateSort(prev => prev === 'desc' ? 'asc' : 'desc')}
+                                    className="font-bold text-indigo-600 hover:text-indigo-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                >
+                                    <span>{dateSort === 'desc' ? 'Terbaru' : 'Terlama'}</span>
+                                    <ArrowUpDown className="w-3 h-3" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* DESKTOP / TABLET TABLE VIEW (hidden on mobile, block on md:) */}
+                        <div className="hidden md:block overflow-x-auto custom-scrollbar">
+                            <table className="w-full min-w-[880px] text-xs text-left">
+                                <thead className="bg-slate-50/90 sticky top-0 z-10 border-b border-slate-200 backdrop-blur-xs">
+                                    <tr>
+                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-36">No. Tiket</th>
+                                        <th
+                                            onClick={() => setDateSort(prev => prev === 'desc' ? 'asc' : 'desc')}
+                                            className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] cursor-pointer hover:text-indigo-600 transition-colors select-none group w-36"
+                                            title="Klik untuk mengubah pengurutan tanggal (Terbaru / Terlama)"
+                                        >
+                                            <div className="flex items-center space-x-1">
+                                                <span>Tanggal</span>
+                                                <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 inline" />
+                                                <span className="text-[9px] font-semibold text-indigo-600">
+                                                    ({dateSort === 'desc' ? 'Terbaru' : 'Terlama'})
+                                                </span>
+                                            </div>
+                                        </th>
+                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-48">Layanan</th>
+                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] min-w-[200px]">Judul Permohonan</th>
+                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-44">Pemohon</th>
+                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-36">Status</th>
+                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] text-right w-32">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 bg-white">
+                                    {loading ? (
+                                        <tr><td colSpan={7} className="px-4 py-14 text-center text-slate-400">
+                                            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-600" />
+                                            <p className="text-xs font-semibold text-slate-600">Memuat data permohonan...</p>
+                                        </td></tr>
+                                    ) : processedRequests.length === 0 ? (
+                                        <tr><td colSpan={7} className="px-4 py-14 text-center text-slate-400">
+                                            <FileText className="w-8 h-8 mx-auto mb-2 opacity-30 text-slate-400" />
+                                            <p className="text-xs font-semibold text-slate-600">Tidak ada permohonan yang sesuai filter</p>
+                                            <p className="text-[11px] text-slate-400 mt-0.5">Coba ubah kata kunci pencarian atau reset filter tanggal.</p>
+                                        </td></tr>
+                                    ) : processedRequests.map(req => {
+                                        const reqForm = (typeof req.form_data === 'string')
+                                            ? (() => { try { return JSON.parse(req.form_data); } catch { return {}; } })()
+                                            : (req.form_data || {});
+                                        const rawTargetDate = reqForm.tanggal_kegiatan || reqForm.tanggal_dibutuhkan || req.tanggal_dibutuhkan || reqForm.deadline || reqForm.tanggal_publikasi || reqForm.tanggal_produksi;
+                                        const targetDate = formatShortDate(rawTargetDate);
+                                        return (
+                                            <tr
+                                                key={req.id}
+                                                className="hover:bg-indigo-50/40 transition-colors cursor-pointer group"
+                                                onClick={() => openDetail(req.id)}
+                                                title="Klik untuk melihat detail lengkap permohonan"
+                                            >
+                                                <td className="px-4 py-3">
+                                                    <span className="font-mono font-bold text-indigo-700 text-[11px] bg-indigo-50/70 border border-indigo-100/80 px-2 py-0.5 rounded-md group-hover:bg-indigo-100/70 transition-colors">
+                                                        {req.nomor_tiket}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                                                    <span className="font-medium">{new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}</span>
+                                                    {targetDate && (
+                                                        <span className="block text-[10px] text-amber-700 font-semibold truncate mt-0.5">Target: {targetDate}</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="font-bold text-slate-800 text-xs block">{getFullServiceName(req)}</span>
+                                                    {reqForm.kategori_kegiatan && (
+                                                        <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200/80 px-1.5 py-0.2 rounded font-semibold inline-block mt-0.5">{reqForm.kategori_kegiatan}</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 max-w-xs">
+                                                    <span className="font-bold text-slate-900 line-clamp-1 text-xs group-hover:text-indigo-600 transition-colors">{req.judul_permohonan}</span>
+                                                    {reqForm.nama_kegiatan && reqForm.nama_kegiatan !== req.judul_permohonan && (
+                                                        <span className="text-[10px] text-slate-500 block truncate mt-0.5">Acara: {reqForm.nama_kegiatan}</span>
+                                                    )}
+                                                    {Array.isArray(reqForm.souvenir_items) && reqForm.souvenir_items.length > 0 && (
+                                                        <span className="text-[10px] text-amber-700 font-semibold block truncate mt-0.5">
+                                                            Suvenir: {reqForm.souvenir_items.map(s => `${s.nama_item} (${s.qty})`).join(', ')}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <span className="font-bold text-slate-800 block text-xs">{reqForm.nama_pemohon || req.user?.name}</span>
+                                                    <span className="text-[10px] text-slate-400 block">{reqForm.unit_pemohon || req.user?.unit_kerja}</span>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <span className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${statusBadgeStyles[req.status] || 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                                                        {req.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="flex items-center justify-end space-x-1.5" onClick={(e) => e.stopPropagation()}>
+                                                        {canUpdateStatus && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openUpdateModalForReq(req)}
+                                                                className="px-2.5 py-1 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+                                                                title="Ubah status permohonan ini"
+                                                            >
+                                                                Ubah Status
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openDetail(req.id)}
+                                                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                                            title="Lihat detail permohonan"
+                                                        >
+                                                            <Eye className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* MOBILE CARD VIEW (block on mobile, hidden on md:) */}
+                        <div className="block md:hidden bg-slate-50/50 p-3 space-y-3">
+                            {loading ? (
+                                <div className="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
+                                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-600" />
+                                    <p className="text-xs font-semibold text-slate-600">Memuat data permohonan...</p>
+                                </div>
+                            ) : processedRequests.length === 0 ? (
+                                <div className="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
+                                    <FileText className="w-8 h-8 mx-auto mb-2 opacity-30 text-slate-400" />
+                                    <p className="text-xs font-semibold text-slate-600">Tidak ada permohonan yang sesuai filter</p>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">Coba ubah kata kunci pencarian atau reset filter tanggal.</p>
+                                </div>
+                            ) : (
+                                processedRequests.map(req => {
                                     const reqForm = (typeof req.form_data === 'string')
                                         ? (() => { try { return JSON.parse(req.form_data); } catch { return {}; } })()
                                         : (req.form_data || {});
                                     const rawTargetDate = reqForm.tanggal_kegiatan || reqForm.tanggal_dibutuhkan || req.tanggal_dibutuhkan || reqForm.deadline || reqForm.tanggal_publikasi || reqForm.tanggal_produksi;
                                     const targetDate = formatShortDate(rawTargetDate);
+                                    const createdDate = new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+
                                     return (
-                                        <tr
+                                        <div
                                             key={req.id}
-                                            className="hover:bg-indigo-50/40 transition-colors cursor-pointer"
-                                            onDoubleClick={() => openDetail(req.id)}
-                                            title="Klik ganda (double-click) untuk melihat detail lengkap permohonan"
+                                            onClick={() => openDetail(req.id)}
+                                            className="bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-sm hover:border-indigo-300 transition-all p-3.5 space-y-2.5 active:bg-slate-50 cursor-pointer"
                                         >
-                                            <td className="px-4 py-3">
-                                                <span className="font-mono font-bold text-indigo-700 text-[11px]">{req.nomor_tiket}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                                                <span>{new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}</span>
-                                                {targetDate && (
-                                                    <span className="block text-[10px] text-slate-400 font-medium truncate">Target: {targetDate}</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className="font-bold text-slate-800 text-xs block">{getFullServiceName(req)}</span>
-                                                {reqForm.kategori_kegiatan && (
-                                                    <span className="text-[10px] text-amber-700 font-semibold block">{reqForm.kategori_kegiatan}</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 max-w-xs">
-                                                <span className="font-bold text-slate-800 line-clamp-1 text-xs">{req.judul_permohonan}</span>
-                                                {reqForm.nama_kegiatan && reqForm.nama_kegiatan !== req.judul_permohonan && (
-                                                    <span className="text-[10px] text-slate-500 block truncate">Acara: {reqForm.nama_kegiatan}</span>
-                                                )}
-                                                {Array.isArray(reqForm.souvenir_items) && reqForm.souvenir_items.length > 0 && (
-                                                    <span className="text-[10px] text-amber-700 font-semibold block truncate">
-                                                        {reqForm.souvenir_items.map(s => `${s.nama_item} (${s.qty})`).join(', ')}
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap">
-                                                <span className="font-bold text-slate-800 block text-xs">{reqForm.nama_pemohon || req.user?.name}</span>
-                                                <span className="text-[10px] text-slate-400 block">{reqForm.unit_pemohon || req.user?.unit_kerja}</span>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap">
+                                            {/* Top Row: Ticket & Status */}
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="font-mono font-black text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-lg text-xs">
+                                                    {req.nomor_tiket}
+                                                </span>
                                                 <span className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${statusBadgeStyles[req.status] || 'bg-slate-50 border-slate-200 text-slate-700'}`}>
                                                     {req.status}
                                                 </span>
-                                            </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <div className="flex items-center justify-end space-x-1.5">
-                                                {canUpdateStatus && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openUpdateModalForReq(req);
-                                                        }}
-                                                        className="px-2.5 py-1 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
-                                                        title="Ubah status permohonan ini"
-                                                    >
-                                                        Ubah Status
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() => openDetail(req.id)}
-                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                                                    title="Lihat detail permohonan"
-                                                >
-                                                    <Eye className="w-3.5 h-3.5" />
-                                                </button>
                                             </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            </tbody>
-                        </table>
-                        <p className="text-[11px] text-slate-400 text-center py-2.5 border-t border-slate-100 font-medium">
-                            💡 Tips: Double-click (klik ganda) pada baris tabel mana saja untuk langsung memunculkan preview detail lengkap.
-                        </p>
+
+                                            {/* Title & Service */}
+                                            <div>
+                                                <h4 className="font-bold text-slate-900 text-xs sm:text-sm line-clamp-2 leading-snug">
+                                                    {req.judul_permohonan}
+                                                </h4>
+                                                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                                    <span className="text-[11px] font-bold text-slate-700">
+                                                        {getFullServiceName(req)}
+                                                    </span>
+                                                    {reqForm.kategori_kegiatan && (
+                                                        <span className="text-[10px] px-1.5 py-0.2 bg-amber-50 text-amber-800 border border-amber-200/80 rounded-md font-semibold">
+                                                            {reqForm.kategori_kegiatan}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {reqForm.nama_kegiatan && reqForm.nama_kegiatan !== req.judul_permohonan && (
+                                                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                                        Acara: {reqForm.nama_kegiatan}
+                                                    </p>
+                                                )}
+                                                {Array.isArray(reqForm.souvenir_items) && reqForm.souvenir_items.length > 0 && (
+                                                    <p className="text-[11px] text-amber-700 font-medium truncate mt-0.5">
+                                                        Suvenir: {reqForm.souvenir_items.map(s => `${s.nama_item} (${s.qty})`).join(', ')}
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {/* Meta: Pemohon & Tanggal */}
+                                            <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                                                <div>
+                                                    <span className="text-[10px] text-slate-400 font-semibold block uppercase">Pemohon</span>
+                                                    <span className="font-bold text-slate-800 truncate block">
+                                                        {reqForm.nama_pemohon || req.user?.name}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 truncate block">
+                                                        {reqForm.unit_pemohon || req.user?.unit_kerja}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-slate-400 font-semibold block uppercase">Tanggal</span>
+                                                    <span className="text-slate-700 block font-medium">
+                                                        {createdDate}
+                                                    </span>
+                                                    {targetDate && (
+                                                        <span className="text-[10px] text-amber-700 font-semibold block truncate">
+                                                            Target: {targetDate}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                                                <span className="text-[10px] text-slate-400 font-medium">
+                                                    Ketuk untuk detail lengkap
+                                                </span>
+                                                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                                    {canUpdateStatus && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openUpdateModalForReq(req)}
+                                                            className="px-2.5 py-1 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer shadow-2xs"
+                                                        >
+                                                            Ubah Status
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openDetail(req.id)}
+                                                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                                                    >
+                                                        <Eye className="w-3 h-3" />
+                                                        <span>Detail</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        {/* Footer Tips */}
+                        <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] text-slate-400 text-center font-medium bg-slate-50/50">
+                            <span className="hidden md:inline">💡 Tips: Klik pada baris tabel mana saja untuk memunculkan detail lengkap permohonan.</span>
+                            <span className="inline md:hidden">💡 Tips: Ketuk kartu permohonan untuk melihat detail lengkap.</span>
+                        </div>
                     </div>
                 </div>
             ) : (
@@ -1948,11 +2097,12 @@ export default function TrackingPage({ defaultSelectedId }) {
                                 </label>
                                 <input
                                     type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png,.docx"
                                     onChange={(e) => setRevisionFile(e.target.files[0] || null)}
                                     className="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
                                 />
                                 <p className="text-[10px] text-slate-400 mt-1">
-                                    Berkas hasil revisi / dokumen pemeriksaan konten akan otomatis tersimpan di lampiran permohonan.
+                                    Format: PDF, JPG, PNG, DOCX (Maks 10MB). Berkas hasil revisi / dokumen pemeriksaan akan otomatis tersimpan di lampiran permohonan.
                                 </p>
                             </div>
 

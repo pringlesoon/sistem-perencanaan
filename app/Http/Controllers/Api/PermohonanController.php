@@ -166,7 +166,7 @@ class PermohonanController extends Controller
             }
         }
 
-        // 2. Validasi Khusus Suvenir [S]
+        // 2. Validasi Khusus Suvenir / Alat Promosi [S]
         if ($request->service_code === 'S') {
             $hasDirectItem = $request->filled('nama_item') && $request->filled('qty_diminta');
             $hasMultiItems = !empty($formData['souvenir_items']) && is_array($formData['souvenir_items']);
@@ -175,6 +175,60 @@ class PermohonanController extends Controller
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Mohon pilih minimal satu jenis suvenir beserta jumlah yang dibutuhkan.',
+                ], 422);
+            }
+
+            $tglKegiatan = $formData['tanggal_kegiatan'] ?? null;
+            $wktKegiatan = $formData['waktu_kegiatan'] ?? null;
+            $lokKegiatan = $formData['lokasi_kegiatan'] ?? null;
+
+            if (empty($tglKegiatan) || empty($wktKegiatan) || empty(trim((string) $lokKegiatan))) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tanggal, Waktu, dan Lokasi kegiatan wajib diisi untuk Layanan Permohonan Alat Promosi.',
+                ], 422);
+            }
+        }
+
+        // 3. Validasi Khusus Publikasi [P] (Tidak memerlukan lokasi -> Tanggal & Waktu Wajib)
+        if ($request->service_code === 'P') {
+            $tglKegiatan = $formData['tanggal_kegiatan'] ?? null;
+            $wktKegiatan = $formData['waktu_kegiatan'] ?? null;
+            $tglPublikasi = $formData['tanggal_publikasi'] ?? null;
+
+            if (empty($tglKegiatan) || empty($wktKegiatan) || empty($tglPublikasi)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tanggal kegiatan, Waktu kegiatan, dan Tanggal publikasi wajib diisi untuk Layanan Publikasi.',
+                ], 422);
+            }
+        }
+
+        // 4. Validasi Khusus Peliputan [L] (Menggunakan lokasi -> Tanggal, Waktu, dan Lokasi Wajib)
+        if ($request->service_code === 'L') {
+            $tglKegiatan = $formData['tanggal_kegiatan'] ?? $formData['tanggal_peliputan'] ?? null;
+            $wktKegiatan = $formData['waktu_peliputan'] ?? $formData['waktu_kegiatan'] ?? null;
+            $lokKegiatan = $formData['lokasi_kegiatan'] ?? null;
+
+            if (empty($tglKegiatan) || empty($wktKegiatan) || empty(trim((string) $lokKegiatan))) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tanggal, Waktu, dan Lokasi kegiatan wajib diisi untuk Layanan Peliputan.',
+                ], 422);
+            }
+        }
+
+        // 5. Validasi Khusus Desain Grafis [D] (Menggunakan lokasi -> Tanggal, Waktu, dan Lokasi Wajib)
+        if ($request->service_code === 'D') {
+            $tglKegiatan = $formData['tanggal_kegiatan'] ?? null;
+            $wktKegiatan = $formData['waktu_kegiatan'] ?? null;
+            $lokKegiatan = $formData['lokasi_kegiatan'] ?? null;
+            $deadline = $formData['deadline'] ?? null;
+
+            if (empty($tglKegiatan) || empty($wktKegiatan) || empty(trim((string) $lokKegiatan)) || empty($deadline)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tanggal kegiatan, Waktu, Lokasi kegiatan, dan Deadline wajib diisi untuk Layanan Desain Grafis.',
                 ], 422);
             }
         }
@@ -440,7 +494,7 @@ class PermohonanController extends Controller
         $request->validate([
             'status' => 'required|string|max:50',
             'catatan' => $noteRule,
-            'revision_file' => 'nullable|file|max:10240', // max 10MB
+            'revision_file' => 'nullable|file|max:10240|mimes:pdf,jpg,jpeg,png,docx', // max 10MB
         ]);
 
         $oldStatus = $permohonan->status;

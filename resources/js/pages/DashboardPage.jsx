@@ -7,7 +7,7 @@ import { Sparkles, ArrowRight, ListOrdered, Clock, CheckCircle2, AlertCircle } f
 export default function DashboardPage({ onSelectService, onGoToTracking }) {
     const { user } = useAuth();
     const [services, setServices] = useState([]);
-    const [summary, setSummary] = useState({ active: 0, completed: 0, needsApproval: 0 });
+    const [summary, setSummary] = useState({ total: 0, active: 0, completed: 0, needsApproval: 0 });
     const [loading, setLoading] = useState(true);
 
     const loadDashboardData = async () => {
@@ -28,7 +28,7 @@ export default function DashboardPage({ onSelectService, onGoToTracking }) {
                 const completed = list.filter(r => r.status === 'Selesai').length;
                 const needsApproval = list.filter(r => r.status === 'Menunggu Approval Sebagian').length;
 
-                setSummary({ active, completed, needsApproval });
+                setSummary({ total: list.length, active, completed, needsApproval });
             }
         } catch (err) {
             console.error('Error fetching dashboard data:', err);
@@ -69,13 +69,20 @@ export default function DashboardPage({ onSelectService, onGoToTracking }) {
                     {/* Quick Stats Badges */}
                     {user && (
                         <div className="flex flex-wrap items-center gap-3">
-                            <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2.5 rounded-2xl">
-                                <p className="text-[10px] uppercase font-bold text-indigo-200">Permohonan Aktif</p>
-                                <p className="text-lg font-black text-amber-300">{summary.active}</p>
+                            <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2 rounded-2xl">
+                                <p className="text-[10px] uppercase font-bold text-indigo-200">Total Permohonan</p>
+                                <p className="text-lg font-black text-white leading-tight">{summary.total}</p>
+                                <p className="text-[10px] text-indigo-200/80 font-medium">Bulan Ini</p>
                             </div>
-                            <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2.5 rounded-2xl">
+                            <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2 rounded-2xl">
+                                <p className="text-[10px] uppercase font-bold text-indigo-200">Permohonan Aktif</p>
+                                <p className="text-lg font-black text-amber-300 leading-tight">{summary.active}</p>
+                                <p className="text-[10px] text-indigo-200/80 font-medium">Diproses</p>
+                            </div>
+                            <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2 rounded-2xl">
                                 <p className="text-[10px] uppercase font-bold text-indigo-200">Selesai</p>
-                                <p className="text-lg font-black text-emerald-300">{summary.completed}</p>
+                                <p className="text-lg font-black text-emerald-300 leading-tight">{summary.completed}</p>
+                                <p className="text-[10px] text-indigo-200/80 font-medium">Tuntas</p>
                             </div>
                             <button
                                 onClick={onGoToTracking}
@@ -83,6 +90,20 @@ export default function DashboardPage({ onSelectService, onGoToTracking }) {
                             >
                                 <ListOrdered className="w-4 h-4 text-indigo-600" />
                                 <span>Pantau Status</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Quick Tracking Button for Guests */}
+                    {!user && (
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={onGoToTracking}
+                                className="px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-xs rounded-2xl backdrop-blur-md shadow-md transition-all flex items-center space-x-2 cursor-pointer"
+                            >
+                                <ListOrdered className="w-4 h-4 text-emerald-300" />
+                                <span>Tracking Permohonan</span>
                                 <ArrowRight className="w-3.5 h-3.5" />
                             </button>
                         </div>

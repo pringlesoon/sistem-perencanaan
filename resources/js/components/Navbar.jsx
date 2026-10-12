@@ -28,7 +28,7 @@ export default function Navbar({ currentTab, setCurrentTab }) {
     const navItems = [
         { id: 'dashboard', label: 'Dasbor Utama', icon: LayoutDashboard, roles: ['User', 'Admin', 'SuperAdmin'] },
         { id: 'tracking', label: 'Tracking Permohonan', icon: ListOrdered, roles: ['User', 'Admin', 'SuperAdmin', 'PIC'] },
-        { id: 'analytics', label: 'Dasbor Analitik', icon: BarChart3, roles: ['Admin', 'SuperAdmin'] },
+        { id: 'analytics', label: 'Dasbor Analitik', icon: BarChart3, roles: ['Admin', 'SuperAdmin', 'PIC'] },
         { id: 'settings', label: 'Kelola Layanan', icon: Settings, roles: ['Admin', 'SuperAdmin'] },
         { id: 'users', label: 'Kelola Pengguna', icon: Users, roles: ['SuperAdmin'] },
     ];

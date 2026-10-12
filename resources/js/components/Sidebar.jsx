@@ -41,12 +41,14 @@ export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobi
     if (['User', 'Admin', 'SuperAdmin', 'PIC', 'Guest'].includes(role)) {
         navItems.push({ id: 'tracking', label: role === 'PIC' ? 'Daftar Permohonan' : 'Tracking Permohonan', icon: ListOrdered });
     }
-    // Ketersediaan Slot Jam (Penjadwalan & Peminjaman Ruangan/Alat) untuk User, SuperAdmin, Admin
+    // Kalender Layanan (Penjadwalan & Peminjaman Ruangan/Alat) untuk User, SuperAdmin, Admin
     if (['User', 'Admin', 'SuperAdmin'].includes(role)) {
-        navItems.push({ id: 'schedule-slots', label: 'Ketersediaan Slot Jam', icon: CalendarClock });
+        navItems.push({ id: 'schedule-slots', label: 'Kalender Layanan', icon: CalendarClock });
+    }
+    if (['Admin', 'SuperAdmin', 'PIC'].includes(role)) {
+        navItems.push({ id: 'analytics', label: 'Dasbor Analitik', icon: BarChart3 });
     }
     if (['Admin', 'SuperAdmin'].includes(role)) {
-        navItems.push({ id: 'analytics', label: 'Dasbor Analitik', icon: BarChart3 });
         navItems.push({ id: 'stock', label: 'Manajemen Stok', icon: Package });
         navItems.push({ id: 'inventory-multimedia', label: 'Inventaris Alat', icon: Camera });
         navItems.push({ id: 'settings', label: 'Kelola Layanan', icon: Settings });
@@ -62,7 +64,7 @@ export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobi
             navItems.push({ id: 'stock', label: 'Manajemen Stok', icon: Package });
         }
         if (picCode === 'M') {
-            navItems.push({ id: 'schedule-slots', label: 'Ketersediaan Slot Jam', icon: CalendarClock });
+            navItems.push({ id: 'schedule-slots', label: 'Kalender Layanan', icon: CalendarClock });
             navItems.push({ id: 'inventory-multimedia', label: 'Inventaris Alat', icon: Camera });
         }
     }

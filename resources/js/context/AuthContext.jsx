@@ -61,6 +61,8 @@ export const AuthProvider = ({ children }) => {
             // ignore
         } finally {
             localStorage.removeItem('sapt_active_tab');
+            localStorage.removeItem('sapt_active_service');
+            sessionStorage.removeItem('sapt_redirect_after_login');
             setUser(null);
         }
     };

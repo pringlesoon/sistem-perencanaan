@@ -2,12 +2,37 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Lock, User, Sparkles, ArrowRight, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react';
 
-export default function LoginPage({ onBackToGuest, onSuccess }) {
+const SERVICE_NAMES = {
+    D: 'Layanan Desain Grafis',
+    P: 'Layanan Publikasi Website & Social Media',
+    S: 'Layanan Alat Promosi & Suvenir',
+    M: 'Layanan Multimedia, Dokumentasi, & Live Streaming',
+    L: 'Layanan Liputan & Berita',
+};
+
+const getRedirectMessage = (target) => {
+    if (!target) return null;
+    if (target.tab === 'request-form') {
+        const sName = SERVICE_NAMES[target.serviceCode] || 'Formulir Permohonan Layanan';
+        return `Silakan masuk terlebih dahulu untuk mengakses ${sName}.`;
+    }
+    if (target.tab === 'tracking') {
+        return 'Silakan masuk terlebih dahulu untuk mengakses Tracking Permohonan.';
+    }
+    if (target.tab === 'schedule-slots') {
+        return 'Silakan masuk terlebih dahulu untuk mengakses Kalender Layanan.';
+    }
+    return 'Silakan masuk terlebih dahulu untuk melanjutkan ke halaman yang Anda tuju.';
+};
+
+export default function LoginPage({ onBackToGuest, onSuccess, redirectTarget }) {
     const { login } = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    const redirectMessage = getRedirectMessage(redirectTarget);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -36,7 +61,7 @@ export default function LoginPage({ onBackToGuest, onSuccess }) {
                 {onBackToGuest && (
                     <button
                         onClick={onBackToGuest}
-                        className="flex items-center space-x-1.5 text-xs text-slate-500 hover:text-slate-700 mb-5 transition-colors"
+                        className="flex items-center space-x-1.5 text-xs text-slate-500 hover:text-slate-700 mb-5 transition-colors cursor-pointer"
                     >
                         <ArrowLeft className="w-3.5 h-3.5" />
                         <span>Kembali ke Beranda</span>
@@ -58,6 +83,17 @@ export default function LoginPage({ onBackToGuest, onSuccess }) {
                         Silakan masuk dengan akun direktori internal.
                     </p>
                 </div>
+
+                {/* Redirect Notice Banner */}
+                {redirectMessage && (
+                    <div className="mb-6 p-3.5 bg-emerald-50 border border-emerald-200/90 rounded-2xl text-xs text-emerald-800 flex items-start space-x-2.5 shadow-xs animate-in fade-in duration-200">
+                        <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div className="leading-relaxed">
+                            <p className="font-bold text-emerald-900">{redirectMessage}</p>
+                            <p className="text-[11px] text-emerald-700 mt-0.5">Sistem akan otomatis mengarahkan Anda ke halaman tersebut setelah login berhasil.</p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Error Banner */}
                 {error && (

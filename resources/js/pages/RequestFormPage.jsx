@@ -5,6 +5,7 @@ import DateTimePicker from '../components/DateTimePicker';
 import FileUploader from '../components/FileUploader';
 import CustomSelect from '../components/CustomSelect';
 import api from '../services/api';
+import TimePicker from '../components/TimePicker';
 import confetti from 'canvas-confetti';
 import { 
     Send, 
@@ -14,6 +15,7 @@ import {
     Sparkles, 
     Calendar,
     Clock,
+    MapPin,
     PackageCheck,
     FileText,
     Camera,
@@ -35,6 +37,19 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
     const [submitting, setSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState(null);
     const [successTicket, setSuccessTicket] = useState(null);
+
+    // Pastikan serviceCode tersimpan di localStorage dan URL hash agar saat refresh tetap di form layanan ini
+    useEffect(() => {
+        if (serviceCode) {
+            localStorage.setItem('sapt_active_service', serviceCode);
+            try {
+                const currentHash = window.location.hash.replace(/^#\/?/, '').trim();
+                if (!currentHash.includes(serviceCode)) {
+                    window.location.hash = `request-form/${serviceCode}`;
+                }
+            } catch (e) {}
+        }
+    }, [serviceCode]);
 
     // Common fields across all forms (kosong default)
     const [namaPemohon, setNamaPemohon] = useState('');
@@ -214,6 +229,22 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 setErrorMsg('Pilih minimal satu jenis desain.');
                 return;
             }
+            if (!namaKegiatan.trim()) {
+                setErrorMsg('Nama kegiatan / program wajib diisi.');
+                return;
+            }
+            if (!tanggalKegiatan) {
+                setErrorMsg('Tanggal kegiatan wajib diisi.');
+                return;
+            }
+            if (!waktuKegiatan) {
+                setErrorMsg('Waktu kegiatan wajib diisi.');
+                return;
+            }
+            if (!lokasiKegiatan.trim()) {
+                setErrorMsg('Lokasi kegiatan wajib diisi.');
+                return;
+            }
             if (!deadlineDesain) {
                 setErrorMsg('Deadline penggunaan desain wajib diisi.');
                 return;
@@ -223,8 +254,21 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 setErrorMsg('Pilih minimal satu media publikasi.');
                 return;
             }
+            if (!namaKegiatan.trim()) {
+                setErrorMsg('Nama kegiatan yang ingin dipublikasikan wajib diisi.');
+                return;
+            }
+            // Layanan Publikasi tidak memerlukan lokasi, sehingga Tanggal & Waktu WAJIB diisi
+            if (!tanggalKegiatan) {
+                setErrorMsg('Tanggal kegiatan publikasi wajib diisi.');
+                return;
+            }
+            if (!waktuKegiatan) {
+                setErrorMsg('Waktu kegiatan publikasi wajib diisi.');
+                return;
+            }
             if (!tanggalPublikasi) {
-                setErrorMsg('Tanggal publikasi wajib diisi.');
+                setErrorMsg('Tanggal tayang / publikasi wajib diisi.');
                 return;
             }
         } else if (serviceCode === 'S') {
@@ -234,6 +278,23 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
             }
             if (kategoriPromosi === 'Lainnya' && !kategoriPromosiLainnya.trim()) {
                 setErrorMsg('Mohon tuliskan rincian kategori kegiatan lainnya.');
+                return;
+            }
+            if (!namaKegiatan.trim()) {
+                setErrorMsg('Nama kegiatan / program alat promosi wajib diisi.');
+                return;
+            }
+            // Layanan Alat Promosi menggunakan lokasi: Tanggal, Waktu, Lokasi WAJIB diisi
+            if (!tanggalKegiatan) {
+                setErrorMsg('Tanggal kegiatan alat promosi wajib diisi.');
+                return;
+            }
+            if (!waktuKegiatan) {
+                setErrorMsg('Waktu kegiatan alat promosi wajib diisi.');
+                return;
+            }
+            if (!lokasiKegiatan.trim()) {
+                setErrorMsg('Lokasi kegiatan alat promosi wajib diisi.');
                 return;
             }
             if (totalSouvenirQty <= 0) {
@@ -253,6 +314,15 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 setErrorMsg('Pilih minimal satu jenis kebutuhan multimedia.');
                 return;
             }
+            if (!namaKegiatan.trim()) {
+                setErrorMsg('Nama kegiatan multimedia wajib diisi.');
+                return;
+            }
+            // Layanan Multimedia menggunakan lokasi:
+            if (!lokasiKegiatan.trim() && !lokasiProduksiMm.trim()) {
+                setErrorMsg('Lokasi kegiatan / produksi multimedia wajib diisi.');
+                return;
+            }
             if (mmButuhJadwal) {
                 if (!tanggalProduksiMm) {
                     setErrorMsg('Tanggal pelaksanaan/produksi (booking ruangan/alat) wajib diisi.');
@@ -260,6 +330,10 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 }
                 if (!mmStartTime || !mmEndTime) {
                     setErrorMsg('Jam mulai dan jam selesai multimedia wajib dipilih.');
+                    return;
+                }
+                if (!lokasiProduksiMm.trim() && !lokasiKegiatan.trim()) {
+                    setErrorMsg('Lokasi produksi / ruangan / alat multimedia wajib diisi.');
                     return;
                 }
                 if (!mmValid) {
@@ -280,6 +354,31 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
         } else if (serviceCode === 'L') {
             if (jenisPeliputan.length === 0) {
                 setErrorMsg('Pilih minimal satu jenis peliputan.');
+                return;
+            }
+            if (!namaKegiatan.trim()) {
+                setErrorMsg('Nama kegiatan peliputan wajib diisi.');
+                return;
+            }
+            // Layanan Peliputan menggunakan lokasi: Tanggal, Waktu, Lokasi WAJIB diisi
+            if (!tanggalKegiatan) {
+                setErrorMsg('Tanggal peliputan wajib diisi.');
+                return;
+            }
+            if (!waktuKegiatan && !waktuPeliputan) {
+                setErrorMsg('Waktu peliputan wajib diisi.');
+                return;
+            }
+            if (!lokasiKegiatan.trim()) {
+                setErrorMsg('Lokasi kegiatan peliputan wajib diisi.');
+                return;
+            }
+            if (!pimpinanTamuHadir.trim()) {
+                setErrorMsg('Pimpinan / tamu yang hadir / interview wajib diisi.');
+                return;
+            }
+            if (!rundownAcara.trim()) {
+                setErrorMsg('Rundown acara peliputan wajib diisi.');
                 return;
             }
         }
@@ -408,9 +507,15 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 unit_pemohon: unitPemohon,
                 no_whatsapp_pemohon: noWhatsappPemohon,
                 nama_kegiatan: namaKegiatan,
+                tanggal_kegiatan: tanggalKegiatan,
+                tanggal_peliputan: tanggalKegiatan,
+                waktu_peliputan: waktuPeliputan || waktuKegiatan,
+                waktu_kegiatan: waktuPeliputan || waktuKegiatan,
+                lokasi_kegiatan: lokasiKegiatan,
+                nama_pic_kegiatan: namaPicKegiatan,
+                no_whatsapp_pic: noWhatsappPic,
                 rundown_acara: rundownAcara,
                 pimpinan_tamu_hadir: pimpinanTamuHadir,
-                waktu_peliputan: waktuPeliputan,
             });
         }
 
@@ -674,31 +779,45 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Tanggal Kegiatan</label>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                                            <span>Tanggal Kegiatan</span>
+                                            <span className="text-rose-500">*</span>
+                                        </label>
                                         <input
                                             type="date"
                                             value={tanggalKegiatan}
                                             onChange={(e) => setTanggalKegiatan(e.target.value)}
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
+                                            required
+                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs font-medium text-slate-800"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Waktu</label>
-                                        <input
-                                            type="time"
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                                            <span>Waktu Kegiatan</span>
+                                            <span className="text-rose-500">*</span>
+                                        </label>
+                                        <TimePicker
                                             value={waktuKegiatan}
-                                            onChange={(e) => setWaktuKegiatan(e.target.value)}
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
+                                            onChange={setWaktuKegiatan}
+                                            placeholder="Pilih Waktu (WIB)"
+                                            required
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Lokasi</label>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                                            <span>Lokasi Kegiatan</span>
+                                            <span className="text-rose-500">*</span>
+                                        </label>
                                         <input
                                             type="text"
                                             value={lokasiKegiatan}
                                             onChange={(e) => setLokasiKegiatan(e.target.value)}
                                             placeholder="Contoh: Auditorium Lt. 12"
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
+                                            required
+                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs font-medium text-slate-800"
                                         />
                                     </div>
                                 </div>
@@ -874,21 +993,30 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Tanggal Kegiatan</label>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <Calendar className="w-3.5 h-3.5 text-sky-600" />
+                                            <span>Tanggal Kegiatan</span>
+                                            <span className="text-rose-500">*</span>
+                                        </label>
                                         <input
                                             type="date"
                                             value={tanggalKegiatan}
                                             onChange={(e) => setTanggalKegiatan(e.target.value)}
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
+                                            required
+                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 shadow-2xs font-medium text-slate-800"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Waktu</label>
-                                        <input
-                                            type="time"
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <Clock className="w-3.5 h-3.5 text-sky-600" />
+                                            <span>Waktu Kegiatan</span>
+                                            <span className="text-rose-500">*</span>
+                                        </label>
+                                        <TimePicker
                                             value={waktuKegiatan}
-                                            onChange={(e) => setWaktuKegiatan(e.target.value)}
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
+                                            onChange={setWaktuKegiatan}
+                                            placeholder="Pilih Waktu (WIB)"
+                                            required
                                         />
                                     </div>
                                 </div>
@@ -1041,31 +1169,45 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Tanggal Kegiatan</label>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                                            <span>Tanggal Kegiatan</span>
+                                            <span className="text-rose-500">*</span>
+                                        </label>
                                         <input
                                             type="date"
                                             value={tanggalKegiatan}
                                             onChange={(e) => setTanggalKegiatan(e.target.value)}
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
+                                            required
+                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 shadow-2xs font-medium text-slate-800"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Waktu</label>
-                                        <input
-                                            type="time"
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                            <span>Waktu Kegiatan</span>
+                                            <span className="text-rose-500">*</span>
+                                        </label>
+                                        <TimePicker
                                             value={waktuKegiatan}
-                                            onChange={(e) => setWaktuKegiatan(e.target.value)}
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
+                                            onChange={setWaktuKegiatan}
+                                            placeholder="Pilih Waktu (WIB)"
+                                            required
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Lokasi Kegiatan</label>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                                            <span>Lokasi Kegiatan</span>
+                                            <span className="text-rose-500">*</span>
+                                        </label>
                                         <input
                                             type="text"
                                             value={lokasiKegiatan}
                                             onChange={(e) => setLokasiKegiatan(e.target.value)}
                                             placeholder="Contoh: Ruang Senat Lt. 1"
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
+                                            required
+                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 shadow-2xs font-medium text-slate-800"
                                         />
                                     </div>
                                 </div>
@@ -1272,13 +1414,18 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                 </div>
                                 <div className="grid grid-cols-1 gap-3">
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Lokasi Kegiatan</label>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                                            <span>Lokasi Kegiatan</span>
+                                            <span className="text-rose-500">*</span>
+                                        </label>
                                         <input
                                             type="text"
                                             value={lokasiKegiatan}
                                             onChange={(e) => setLokasiKegiatan(e.target.value)}
-                                            placeholder="Contoh: Studio Podcast / Ruang Rapat"
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
+                                            placeholder="Contoh: Studio Podcast / Ruang Rapat Lt. 2"
+                                            required
+                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-2xs font-medium text-slate-800"
                                         />
                                     </div>
                                 </div>
@@ -1345,15 +1492,18 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                             onValidationChange={(val) => setMmValid(val.isValid)}
                                         />
                                         <div>
-                                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                                Lokasi Produksi / Ruangan / Alat
+                                            <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                                <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                                                <span>Lokasi Produksi / Ruangan / Alat</span>
+                                                <span className="text-rose-500">*</span>
                                             </label>
                                             <input
                                                 type="text"
                                                 value={lokasiProduksiMm}
                                                 onChange={(e) => setLokasiProduksiMm(e.target.value)}
                                                 placeholder="Ketik lokasi produksi, ruangan, atau alat yang dibutuhkan..."
-                                                className="w-full px-3.5 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-400 outline-none transition-colors"
+                                                required
+                                                className="w-full px-3.5 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 placeholder:text-slate-400 outline-none transition-colors"
                                             />
                                         </div>
                                     </div>
@@ -1480,10 +1630,12 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                         className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
                                     />
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                                            Tanggal Peliputan <span className="text-rose-500">*</span>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <Calendar className="w-3.5 h-3.5 text-rose-500" />
+                                            <span>Tanggal Peliputan</span>
+                                            <span className="text-rose-500">*</span>
                                         </label>
                                         <input
                                             type="date"
@@ -1491,20 +1643,38 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                             value={tanggalKegiatan}
                                             onChange={(e) => setTanggalKegiatan(e.target.value)}
                                             required
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
+                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs font-medium text-slate-800"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                                            Waktu Peliputan <span className="text-rose-500">*</span>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <Clock className="w-3.5 h-3.5 text-rose-500" />
+                                            <span>Waktu Peliputan</span>
+                                            <span className="text-rose-500">*</span>
+                                        </label>
+                                        <TimePicker
+                                            value={waktuKegiatan || waktuPeliputan}
+                                            onChange={(val) => {
+                                                setWaktuKegiatan(val);
+                                                setWaktuPeliputan(val);
+                                            }}
+                                            placeholder="Pilih Waktu (WIB)"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+                                            <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                                            <span>Lokasi Kegiatan</span>
+                                            <span className="text-rose-500">*</span>
                                         </label>
                                         <input
                                             type="text"
-                                            value={waktuPeliputan}
-                                            onChange={(e) => setWaktuPeliputan(e.target.value)}
-                                            placeholder="Contoh: 08.30 - 12.00 WIB"
+                                            value={lokasiKegiatan}
+                                            onChange={(e) => setLokasiKegiatan(e.target.value)}
+                                            placeholder="Contoh: Auditorium Ar-Rahman Lt. 12"
                                             required
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
+                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs font-medium text-slate-800"
                                         />
                                     </div>
                                 </div>

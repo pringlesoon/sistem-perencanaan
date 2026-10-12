@@ -31,7 +31,7 @@ function isTabAllowed(tab, user) {
         if (tab === 'stock' && picCode !== 'S') return false;
         if (tab === 'inventory-multimedia' && picCode !== 'M') return false;
         if (tab === 'schedule-slots' && picCode !== 'M') return false;
-        if (['analytics', 'settings', 'users'].includes(tab)) return false;
+        if (['settings', 'users'].includes(tab)) return false;
         return true;
     }
 
@@ -56,53 +56,178 @@ function AppContent() {
     // Inisialisasi tab: utamakan hash URL, kemudian localStorage, default 'dashboard'
     const [currentTab, setCurrentTabState] = useState(() => {
         const hash = window.location.hash.replace(/^#\/?/, '').trim();
+        if (hash.startsWith('request-form')) {
+            return 'request-form';
+        }
         const saved = localStorage.getItem('sapt_active_tab');
         return hash || saved || 'dashboard';
     });
 
-    const [selectedServiceCode, setSelectedServiceCode] = useState('D');
+    const [selectedServiceCode, setSelectedServiceCode] = useState(() => {
+        const hash = window.location.hash.replace(/^#\/?/, '').trim();
+        if (hash.startsWith('request-form/')) {
+            const code = hash.split('/')[1]?.toUpperCase();
+            if (['D', 'P', 'S', 'M', 'L'].includes(code)) {
+                return code;
+            }
+        }
+        const saved = localStorage.getItem('sapt_active_service');
+        if (saved && ['D', 'P', 'S', 'M', 'L'].includes(saved)) {
+            return saved;
+        }
+        return 'D';
+    });
     const [selectedPermohonanId, setSelectedPermohonanId] = useState(null);
     const [mobileOpen, setMobileOpen] = useState(false);
+
+    // Simpan tujuan redirect setelah login jika user belum terotentikasi
+    const [redirectTarget, setRedirectTarget] = useState(() => {
+        try {
+            const saved = sessionStorage.getItem('sapt_redirect_after_login');
+            return saved ? JSON.parse(saved) : null;
+        } catch (e) {
+            return null;
+        }
+    });
+
+    const saveRedirectTarget = (target) => {
+        setRedirectTarget(target);
+        try {
+            if (target) {
+                sessionStorage.setItem('sapt_redirect_after_login', JSON.stringify(target));
+            } else {
+                sessionStorage.removeItem('sapt_redirect_after_login');
+            }
+        } catch (e) {}
+    };
+
+    const clearRedirectTarget = () => {
+        setRedirectTarget(null);
+        try {
+            sessionStorage.removeItem('sapt_redirect_after_login');
+        } catch (e) {}
+    };
 
     // Dapatkan menu paling atas di sidebar sesuai role
     const getTopMenuTab = (role) => {
         return role === 'PIC' ? 'tracking' : 'dashboard';
     };
 
-    const setCurrentTab = (tab) => {
+    const setCurrentTab = (tab, serviceCode = null, currentUser = user) => {
         let targetTab = tab;
+        const activeUser = currentUser || user;
+
+        // Jika user belum login dan mencoba mengakses tab yang protected (bukan dashboard atau login)
+        if (!activeUser && tab !== 'dashboard' && tab !== 'login') {
+            const codeToSave = serviceCode || (tab === 'request-form' ? selectedServiceCode : null);
+            const target = {
+                tab: tab,
+                serviceCode: codeToSave,
+                permohonanId: selectedPermohonanId,
+            };
+            saveRedirectTarget(target);
+
+            localStorage.setItem('sapt_active_tab', 'login');
+            try {
+                window.location.hash = 'login';
+            } catch (e) {}
+            setCurrentTabState('login');
+            return;
+        }
+
         // PIC role cannot access dashboard or request-form
-        if (user?.role === 'PIC' && (tab === 'dashboard' || tab === 'request-form')) {
+        if (activeUser?.role === 'PIC' && (tab === 'dashboard' || tab === 'request-form')) {
             targetTab = 'tracking';
         }
         localStorage.setItem('sapt_active_tab', targetTab);
-        try {
-            window.location.hash = targetTab;
-        } catch (e) {}
+
+        const codeToUse = serviceCode || selectedServiceCode;
+        if (targetTab === 'request-form') {
+            setSelectedServiceCode(codeToUse);
+            localStorage.setItem('sapt_active_service', codeToUse);
+            try {
+                window.location.hash = `request-form/${codeToUse}`;
+            } catch (e) {}
+        } else {
+            try {
+                window.location.hash = targetTab;
+            } catch (e) {}
+        }
         setCurrentTabState(targetTab);
     };
 
     // Sinkronisasi perubahan hash browser (misal tombol Back/Forward browser)
     React.useEffect(() => {
         const handleHashChange = () => {
-            const hash = window.location.hash.replace(/^#\/?/, '').trim();
-            if (hash && hash !== currentTab) {
-                if (isTabAllowed(hash, user)) {
-                    setCurrentTabState(hash);
-                    localStorage.setItem('sapt_active_tab', hash);
-                }
+            const rawHash = window.location.hash.replace(/^#\/?/, '').trim();
+            if (!rawHash) return;
+
+            let targetTab = rawHash;
+            let targetService = null;
+
+            if (rawHash.startsWith('request-form/')) {
+                targetTab = 'request-form';
+                targetService = rawHash.split('/')[1]?.toUpperCase();
+            } else if (rawHash.startsWith('request-form')) {
+                targetTab = 'request-form';
+            }
+
+            if (targetService && ['D', 'P', 'S', 'M', 'L'].includes(targetService)) {
+                setSelectedServiceCode(targetService);
+                localStorage.setItem('sapt_active_service', targetService);
+            }
+
+            // Jika guest mencoba mengakses protected tab via hash URL
+            if (!user && targetTab !== 'dashboard' && targetTab !== 'login') {
+                const target = {
+                    tab: targetTab,
+                    serviceCode: targetService || selectedServiceCode,
+                    permohonanId: null,
+                };
+                saveRedirectTarget(target);
+                setCurrentTabState('login');
+                localStorage.setItem('sapt_active_tab', 'login');
+                try {
+                    window.location.hash = 'login';
+                } catch (e) {}
+                return;
+            }
+
+            if (targetTab !== currentTab && isTabAllowed(targetTab, user)) {
+                setCurrentTabState(targetTab);
+                localStorage.setItem('sapt_active_tab', targetTab);
             }
         };
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
-    }, [currentTab, user]);
+    }, [currentTab, user, selectedServiceCode]);
 
     // PROTEKSI ROLE & VALIDASI TAB:
     React.useEffect(() => {
         if (!loading) {
-            // Guest redirected to login jika mengakses tab protected
-            if (!user && currentTab !== 'dashboard' && currentTab !== 'login') {
-                setCurrentTab('login');
+            // Guest handling:
+            if (!user) {
+                // Jika tidak ada hash di URL dan tab saat ini berasal dari cache yang bukan dashboard/login
+                // dan belum ada redirectTarget yang sengaja disimpan, kembalikan ke dashboard
+                const hash = window.location.hash.replace(/^#\/?/, '').trim();
+                if (!hash && !sessionStorage.getItem('sapt_redirect_after_login')) {
+                    if (currentTab !== 'dashboard' && currentTab !== 'login') {
+                        setCurrentTabState('dashboard');
+                        localStorage.setItem('sapt_active_tab', 'dashboard');
+                        return;
+                    }
+                }
+
+                // Guest redirected to login jika mengakses tab protected
+                if (currentTab !== 'dashboard' && currentTab !== 'login') {
+                    const target = {
+                        tab: currentTab,
+                        serviceCode: currentTab === 'request-form' ? selectedServiceCode : null,
+                        permohonanId: selectedPermohonanId,
+                    };
+                    saveRedirectTarget(target);
+                    setCurrentTab('login');
+                }
             }
             // PIC cannot access dashboard or request-form
             else if (user?.role === 'PIC' && (currentTab === 'dashboard' || currentTab === 'request-form')) {
@@ -116,11 +241,49 @@ function AppContent() {
             else if (user) {
                 localStorage.setItem('sapt_active_tab', currentTab);
                 try {
-                    window.location.hash = currentTab;
+                    if (currentTab === 'request-form') {
+                        window.location.hash = `request-form/${selectedServiceCode}`;
+                        localStorage.setItem('sapt_active_service', selectedServiceCode);
+                    } else {
+                        window.location.hash = currentTab;
+                    }
                 } catch (e) {}
             }
         }
-    }, [user, currentTab, loading]);
+    }, [user, currentTab, loading, selectedServiceCode]);
+
+    const handleLoginSuccess = (loggedInUser) => {
+        let target = redirectTarget;
+        if (!target) {
+            try {
+                const saved = sessionStorage.getItem('sapt_redirect_after_login');
+                if (saved) target = JSON.parse(saved);
+            } catch (e) {}
+        }
+
+        clearRedirectTarget();
+
+        // Jika ada target spesifik dan user diizinkan mengakses tab tersebut
+        if (target && target.tab && isTabAllowed(target.tab, loggedInUser)) {
+            if (target.tab === 'request-form') {
+                const code = target.serviceCode || selectedServiceCode || 'D';
+                setSelectedServiceCode(code);
+                localStorage.setItem('sapt_active_service', code);
+                setCurrentTab('request-form', code, loggedInUser);
+                return;
+            }
+
+            if (target.tab === 'tracking' && target.permohonanId) {
+                setSelectedPermohonanId(target.permohonanId);
+            }
+
+            setCurrentTab(target.tab, null, loggedInUser);
+            return;
+        }
+
+        // Default sesuai role (tracking untuk PIC, dashboard untuk lainnya)
+        setCurrentTab(getTopMenuTab(loggedInUser?.role), null, loggedInUser);
+    };
 
     if (loading) {
         return (
@@ -136,9 +299,13 @@ function AppContent() {
     if (!user && currentTab === 'login') {
         return (
             <LoginPage
-                onBackToGuest={() => setCurrentTab('dashboard')}
+                onBackToGuest={() => {
+                    clearRedirectTarget();
+                    setCurrentTab('dashboard');
+                }}
+                redirectTarget={redirectTarget}
                 onSuccess={(loggedInUser) => {
-                    setCurrentTab(getTopMenuTab(loggedInUser?.role));
+                    handleLoginSuccess(loggedInUser);
                 }}
             />
         );
@@ -146,7 +313,8 @@ function AppContent() {
 
     const handleSelectService = (code) => {
         setSelectedServiceCode(code);
-        setCurrentTab('request-form');
+        localStorage.setItem('sapt_active_service', code);
+        setCurrentTab('request-form', code);
     };
 
     return (
@@ -217,7 +385,8 @@ function AppContent() {
                                 <RoomSchedulePage
                                     onNavigateToRequest={(serviceCode = 'M') => {
                                         setSelectedServiceCode(serviceCode);
-                                        setCurrentTab('request-form');
+                                        localStorage.setItem('sapt_active_service', serviceCode);
+                                        setCurrentTab('request-form', serviceCode);
                                     }}
                                     onOpenTrackingDetail={(id) => {
                                         setSelectedPermohonanId(id);
