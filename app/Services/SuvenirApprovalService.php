@@ -138,9 +138,9 @@ class SuvenirApprovalService
         User $approver,
         string $decision, // 'approve' atau 'reject'
         ?string $catatan = null,
-        ?int $qtyDisetujui = null
+        ?array $items = null
     ): Permohonan {
-        return DB::transaction(function () use ($permohonan, $approver, $decision, $catatan) {
+        return DB::transaction(function () use ($permohonan, $approver, $decision, $catatan, $items) {
             $detail = $permohonan->suvenirDetail;
             if (!$detail) {
                 throw new Exception('Detail suvenir tidak ditemukan.');
@@ -148,6 +148,28 @@ class SuvenirApprovalService
 
             $oldStatus = $permohonan->status;
             $approverRoleName = $approver->role === 'SuperAdmin' ? 'Super Admin' : 'Admin';
+
+            // Jika ada perubahan kuota unit saat approval
+            if (!empty($items) && is_array($items)) {
+                $formData = $permohonan->form_data ?? [];
+                if (!empty($formData['souvenir_items']) && is_array($formData['souvenir_items'])) {
+                    $itemsMap = collect($items)->keyBy('nama_item');
+                    $totalDisetujui = 0;
+                    foreach ($formData['souvenir_items'] as &$sItem) {
+                        $key = $sItem['nama_item'] ?? '';
+                        if (isset($itemsMap[$key])) {
+                            $approved = (int)$itemsMap[$key]['qty_disetujui'];
+                            $sItem['qty_disetujui'] = $approved;
+                            $totalDisetujui += $approved;
+                        } else {
+                            $totalDisetujui += (int)($sItem['qty_disetujui'] ?? $sItem['qty'] ?? 0);
+                        }
+                    }
+                    unset($sItem);
+                    $permohonan->form_data = $formData;
+                    $detail->qty_disetujui_otomatis = $totalDisetujui;
+                }
+            }
 
             if ($decision === 'approve') {
                 $detail->status_approval = 'Disetujui';
@@ -190,48 +212,8 @@ class SuvenirApprovalService
                     ]);
                 }
 
-                // Potong stok inventaris sesuai kuota yang disetujui
-                $formData = $permohonan->form_data;
-                $souvenirItems = $formData['souvenir_items'] ?? [];
-                if (!empty($souvenirItems) && is_array($souvenirItems)) {
-                    foreach ($souvenirItems as $sItem) {
-                        $qtyDeduct = isset($sItem['qty_disetujui']) ? (int)$sItem['qty_disetujui'] : (int)($sItem['qty'] ?? 0);
-                        if ($qtyDeduct > 0 && !empty($sItem['nama_item'])) {
-                            $inv = InventoryItem::where('kategori', 'suvenir')->where('nama_item', $sItem['nama_item'])->first();
-                            if ($inv) {
-                                $actualDeduct = min($inv->stok_tersedia, $qtyDeduct);
-                                $inv->stok_tersedia = max(0, $inv->stok_tersedia - $actualDeduct);
-                                $inv->save();
-
-                                InventoryLog::create([
-                                    'inventory_item_id' => $inv->id,
-                                    'tipe' => 'Keluar',
-                                    'jumlah' => $actualDeduct,
-                                    'catatan' => "Pengeluaran suvenir untuk tiket #{$permohonan->nomor_tiket}",
-                                    'user_id' => $approver->id,
-                                    'permohonan_id' => $permohonan->id,
-                                ]);
-                            }
-                        }
-                    }
-                } elseif (!empty($detail->nama_item)) {
-                    $inv = InventoryItem::where('kategori', 'suvenir')->where('nama_item', $detail->nama_item)->first();
-                    $qtyDeduct = $detail->qty_disetujui_otomatis > 0 ? $detail->qty_disetujui_otomatis : $detail->qty_diminta;
-                    if ($inv && $qtyDeduct > 0) {
-                        $actualDeduct = min($inv->stok_tersedia, $qtyDeduct);
-                        $inv->stok_tersedia = max(0, $inv->stok_tersedia - $actualDeduct);
-                        $inv->save();
-
-                        InventoryLog::create([
-                            'inventory_item_id' => $inv->id,
-                            'tipe' => 'Keluar',
-                            'jumlah' => $actualDeduct,
-                            'catatan' => "Pengeluaran suvenir untuk tiket #{$permohonan->nomor_tiket}",
-                            'user_id' => $approver->id,
-                            'permohonan_id' => $permohonan->id,
-                        ]);
-                    }
-                }
+                // Catatan: Stok inventaris TIDAK dipotong di sini (saat status Diproses).
+                // Stok HANYA dipotong otomatis ketika status permohonan diubah menjadi 'Selesai'.
             } else {
                 $detail->status_approval = 'Ditolak';
                 $detail->approved_by = $approver->id;
@@ -262,5 +244,106 @@ class SuvenirApprovalService
 
             return $permohonan->fresh(['user', 'service', 'suvenirDetail', 'statusHistories']);
         });
+    }
+
+    /**
+     * Potong stok inventaris suvenir HANYA ketika status permohonan berubah menjadi "Selesai".
+     * Stok TIDAK BOLEH berkurang saat Diajukan, Menunggu Approval, Diproses, maupun Ditolak.
+     */
+    public function deductStockOnComplete(Permohonan $permohonan, User $actor): void
+    {
+        $detail = $permohonan->suvenirDetail ?? RequestSuvenirDetail::where('permohonan_id', $permohonan->id)->first();
+        $isSuvenir = ($permohonan->service?->code === 'S')
+            || ($permohonan->kategori === 'Suvenir')
+            || str_contains($permohonan->kategori ?? '', 'Suvenir')
+            || str_contains($permohonan->kategori ?? '', 'Promosi')
+            || ($detail !== null);
+
+        if (!$isSuvenir) {
+            return;
+        }
+
+        // Cek jika stok untuk permohonan ini sudah pernah dipotong keluar (mencegah duplikasi potongan)
+        $alreadyDeducted = InventoryLog::where('permohonan_id', $permohonan->id)
+            ->where('tipe', 'Keluar')
+            ->exists();
+
+        if ($alreadyDeducted) {
+            return;
+        }
+
+        $formData = $permohonan->form_data;
+        if (is_string($formData)) {
+            $formData = json_decode($formData, true) ?: [];
+        }
+
+        $souvenirItems = $formData['souvenir_items'] ?? [];
+        if (!empty($souvenirItems) && is_array($souvenirItems)) {
+            foreach ($souvenirItems as $sItem) {
+                $qtyDeduct = isset($sItem['qty_disetujui']) ? (int)$sItem['qty_disetujui'] : (int)($sItem['qty'] ?? 0);
+                if ($qtyDeduct > 0 && !empty($sItem['nama_item'])) {
+                    $inv = InventoryItem::where('kategori', 'suvenir')->where('nama_item', $sItem['nama_item'])->first();
+                    if ($inv) {
+                        $actualDeduct = min($inv->stok_tersedia, $qtyDeduct);
+                        $inv->stok_tersedia = max(0, $inv->stok_tersedia - $actualDeduct);
+                        $inv->save();
+
+                        InventoryLog::create([
+                            'inventory_item_id' => $inv->id,
+                            'tipe' => 'Keluar',
+                            'jumlah' => $actualDeduct,
+                            'catatan' => "Pengeluaran suvenir untuk tiket #{$permohonan->nomor_tiket} (Status Selesai)",
+                            'user_id' => $actor->id,
+                            'permohonan_id' => $permohonan->id,
+                        ]);
+                    }
+                }
+            }
+        } elseif ($detail && !empty($detail->nama_item)) {
+            $inv = InventoryItem::where('kategori', 'suvenir')->where('nama_item', $detail->nama_item)->first();
+            $qtyDeduct = $detail->qty_disetujui_otomatis > 0 ? (int)$detail->qty_disetujui_otomatis : (int)$detail->qty_diminta;
+            if ($inv && $qtyDeduct > 0) {
+                $actualDeduct = min($inv->stok_tersedia, $qtyDeduct);
+                $inv->stok_tersedia = max(0, $inv->stok_tersedia - $actualDeduct);
+                $inv->save();
+
+                InventoryLog::create([
+                    'inventory_item_id' => $inv->id,
+                    'tipe' => 'Keluar',
+                    'jumlah' => $actualDeduct,
+                    'catatan' => "Pengeluaran suvenir untuk tiket #{$permohonan->nomor_tiket} (Status Selesai)",
+                    'user_id' => $actor->id,
+                    'permohonan_id' => $permohonan->id,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Kembalikan stok suvenir jika status permohonan yang sebelumnya Selesai diubah ke status selain Selesai.
+     */
+    public function restoreStockOnRevert(Permohonan $permohonan, User $actor, string $newStatus): void
+    {
+        $logs = InventoryLog::where('permohonan_id', $permohonan->id)
+            ->where('tipe', 'Keluar')
+            ->get();
+
+        foreach ($logs as $log) {
+            $inv = InventoryItem::find($log->inventory_item_id);
+            if ($inv) {
+                $inv->stok_tersedia += $log->jumlah;
+                $inv->save();
+
+                InventoryLog::create([
+                    'inventory_item_id' => $inv->id,
+                    'tipe' => 'Masuk',
+                    'jumlah' => $log->jumlah,
+                    'catatan' => "Pengembalian stok suvenir tiket #{$permohonan->nomor_tiket} (Status dibatalkan dari Selesai ke {$newStatus})",
+                    'user_id' => $actor->id,
+                    'permohonan_id' => $permohonan->id,
+                ]);
+            }
+            $log->delete();
+        }
     }
 }

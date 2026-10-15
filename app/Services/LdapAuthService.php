@@ -89,6 +89,18 @@ class LdapAuthService
                 'unit_kerja' => 'Divisi Marketing YARSI',
                 'role' => 'SuperAdmin',
             ],
+            'sari' => [
+                'name' => 'Sari Indah',
+                'email' => 'sari.admin@kampus.ac.id',
+                'unit_kerja' => 'Biro Administrasi',
+                'role' => 'Admin',
+            ],
+            'budi' => [
+                'name' => 'Dr. Budi Santoso',
+                'email' => 'budi.approver@kampus.ac.id',
+                'unit_kerja' => 'Pimpinan Lembaga',
+                'role' => 'Approver',
+            ],
             'ahmad' => [
                 'name' => 'Ahmad Fauzi',
                 'email' => 'ahmad.pic@kampus.ac.id',

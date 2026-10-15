@@ -126,32 +126,11 @@ class MultimediaSchedulingService
 
         $durationMinutes = $start->diffInMinutes($end);
 
-        // Ambil batas maksimal dari config di database
-        $service = Service::where('code', 'M')->first();
-        $maxDuration = 180; // default 3 jam
-        if ($service) {
-            $config = ServiceConfig::where('service_id', $service->id)
-                ->where('config_key', 'max_duration_minutes')
-                ->first();
-            if ($config) {
-                $maxDuration = (int) $config->config_value;
-            }
-        }
-
-        if ($durationMinutes > $maxDuration) {
-            $maxHours = round($maxDuration / 60, 1);
-            return [
-                'valid' => false,
-                'duration' => $durationMinutes,
-                'max_duration' => $maxDuration,
-                'message' => "Durasi pemesanan ({$durationMinutes} menit) melebihi batas maksimal yang diizinkan ({$maxHours} jam / {$maxDuration} menit).",
-            ];
-        }
-
+        // Pengguna bebas memilih rentang waktu tanpa batasan jam
         return [
             'valid' => true,
             'duration' => $durationMinutes,
-            'max_duration' => $maxDuration,
+            'max_duration' => 0,
             'message' => null,
         ];
     }

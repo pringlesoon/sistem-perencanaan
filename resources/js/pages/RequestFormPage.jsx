@@ -215,7 +215,7 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
             return;
         }
         if (!unitPemohon.trim()) {
-            setErrorMsg('Program Studi / Unit Pemohon wajib diisi.');
+            setErrorMsg('Unit Pemohon wajib diisi.');
             return;
         }
         if (!noWhatsappPemohon.trim()) {
@@ -318,11 +318,6 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 setErrorMsg('Nama kegiatan multimedia wajib diisi.');
                 return;
             }
-            // Layanan Multimedia menggunakan lokasi:
-            if (!lokasiKegiatan.trim() && !lokasiProduksiMm.trim()) {
-                setErrorMsg('Lokasi kegiatan / produksi multimedia wajib diisi.');
-                return;
-            }
             if (mmButuhJadwal) {
                 if (!tanggalProduksiMm) {
                     setErrorMsg('Tanggal pelaksanaan/produksi (booking ruangan/alat) wajib diisi.');
@@ -332,12 +327,12 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                     setErrorMsg('Jam mulai dan jam selesai multimedia wajib dipilih.');
                     return;
                 }
-                if (!lokasiProduksiMm.trim() && !lokasiKegiatan.trim()) {
+                if (!lokasiProduksiMm.trim()) {
                     setErrorMsg('Lokasi produksi / ruangan / alat multimedia wajib diisi.');
                     return;
                 }
                 if (!mmValid) {
-                    setErrorMsg('Jadwal multimedia tidak valid (maksimal 3 jam dan tidak boleh bentrok).');
+                    setErrorMsg('Jadwal multimedia tidak valid (tidak boleh bentrok dengan jadwal lain).');
                     return;
                 }
             }
@@ -472,7 +467,7 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 unit_pemohon: unitPemohon,
                 no_whatsapp_pemohon: noWhatsappPemohon,
                 nama_kegiatan: namaKegiatan,
-                lokasi_kegiatan: lokasiKegiatan,
+                lokasi_kegiatan: lokasiProduksiMm || '',
                 nama_pic_kegiatan: namaPicKegiatan,
                 no_whatsapp_pic: noWhatsappPic,
                 konsep_konten: konsepKontenMm,
@@ -682,7 +677,7 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                             </div>
                             <div>
                                 <label className="block text-slate-600 font-bold mb-1">
-                                    Program Studi / Unit Pemohon <span className="text-rose-500">*</span>
+                                    Unit Pemohon <span className="text-rose-500">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -1412,23 +1407,6 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                         className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300"
                                     />
                                 </div>
-                                <div className="grid grid-cols-1 gap-3">
-                                    <div>
-                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
-                                            <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                                            <span>Lokasi Kegiatan</span>
-                                            <span className="text-rose-500">*</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={lokasiKegiatan}
-                                            onChange={(e) => setLokasiKegiatan(e.target.value)}
-                                            placeholder="Contoh: Studio Podcast / Ruang Rapat Lt. 2"
-                                            required
-                                            className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-2xs font-medium text-slate-800"
-                                        />
-                                    </div>
-                                </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-200">
                                     <div>
                                         <label className="block text-[11px] font-bold text-slate-600 mb-1">Nama PIC Kegiatan</label>
@@ -1475,7 +1453,7 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                         <div className="flex items-center space-x-2">
                                             <Calendar className="w-4 h-4 text-emerald-700" />
                                             <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wider block">
-                                                Penjadwalan & Peminjaman Ruangan/Alat (Maksimal 3 Jam)
+                                                Penjadwalan & Peminjaman Ruangan/Alat
                                             </span>
                                         </div>
                                         <p className="text-[11px] text-emerald-800">
@@ -1488,7 +1466,7 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                             setStartTime={setMmStartTime}
                                             endTime={mmEndTime}
                                             setEndTime={setMmEndTime}
-                                            maxDurationMinutes={180}
+                                            maxDurationMinutes={null}
                                             onValidationChange={(val) => setMmValid(val.isValid)}
                                         />
                                         <div>
@@ -1593,8 +1571,8 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                                     Jenis Peliputan <span className="text-rose-500">*</span>
                                 </label>
-                                <div className="grid grid-cols-2 gap-3 text-xs">
-                                    {['Wawancara', 'Penulisan Berita'].map((item) => (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                    {['Wawancara', 'Penulisan Berita', 'Meliput Kegiatan'].map((item) => (
                                         <label
                                             key={item}
                                             className={`flex items-center space-x-2.5 p-3 rounded-xl border cursor-pointer transition-all ${

@@ -68,7 +68,7 @@ export default function SplitScreenLayout({ service, children }) {
                 >
                     <div className="flex items-center space-x-2">
                         <BookOpen className="w-4 h-4 text-indigo-600" />
-                        <span>Syarat & Ketentuan Layanan [{service?.code}]</span>
+                        <span>Syarat & Ketentuan Layanan</span>
                     </div>
                     {mobileRulesOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>

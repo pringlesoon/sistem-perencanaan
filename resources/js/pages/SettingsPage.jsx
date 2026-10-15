@@ -252,7 +252,7 @@ export default function SettingsPage() {
                                     }`}
                             >
                                 <Icon className="w-3.5 h-3.5" />
-                                <span>[{svc.code}] {svc.name}</span>
+                                <span>{svc.name}</span>
                                 {!svc.is_active && (
                                     <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase ${isSelected ? 'bg-indigo-800 text-indigo-200' : 'bg-slate-200 text-slate-600'}`}>
                                         Nonaktif
@@ -378,7 +378,7 @@ export default function SettingsPage() {
                                     {cfg.config_key === 'auto_approval_limit' ? 'Batas Auto-Approval Suvenir' : 'Durasi Maksimal Multimedia'}
                                 </span>
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                                    [{cfg.service?.code || '-'}]
+                                    {cfg.service?.name || 'Sistem'}
                                 </span>
                             </div>
                             <p className="text-[11px] text-slate-500 leading-tight">

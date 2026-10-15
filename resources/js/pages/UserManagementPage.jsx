@@ -339,8 +339,9 @@ export default function UserManagementPage() {
                     return (
                         <div key={svc.code} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
                             <div className="flex items-start justify-between mb-2">
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${serviceColor[svc.code]}`}>
-                                    {svc.code}
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${serviceColor[svc.code]}`}>
+                                    <Briefcase className="w-3 h-3" />
+                                    <span>Layanan</span>
                                 </span>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pics.length > 0 ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                                     {pics.length > 0 ? `${pics.length} PIC` : 'Kosong'}
@@ -423,7 +424,7 @@ export default function UserManagementPage() {
                                             {u.pic_service_code ? (
                                                 <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${serviceColor[u.pic_service_code]}`}>
                                                     <Briefcase className="w-3 h-3" />
-                                                    <span>{u.pic_service ? u.pic_service.name : `[${u.pic_service_code}]`}</span>
+                                                    <span>{u.pic_service ? u.pic_service.name : (SERVICES.find(s => s.code === u.pic_service_code)?.name || 'Layanan')}</span>
                                                 </span>
                                             ) : (
                                                 <span className="text-slate-400">-</span>

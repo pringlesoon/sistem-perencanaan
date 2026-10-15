@@ -340,7 +340,7 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                         </div>
                         <div>
                             <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                                Kalender Layanan
+                                Cek Availability Multimedia
                             </h2>
                             <p className="text-xs text-slate-500 mt-0.5">
                                 Penjadwalan & Peminjaman Ruangan, Studio Podcast, dan Fasilitas Multimedia Universitas YARSI.

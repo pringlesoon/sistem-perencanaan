@@ -8,6 +8,8 @@ use Tests\TestCase;
 
 class AuthLdapTest extends TestCase
 {
+    use RefreshDatabase;
+
     /**
      * AC-01: User dengan kredensial LDAP valid berhasil login dan diarahkan ke Dasbor
      */

@@ -20,7 +20,7 @@ const getRedirectMessage = (target) => {
         return 'Silakan masuk terlebih dahulu untuk mengakses Tracking Permohonan.';
     }
     if (target.tab === 'schedule-slots') {
-        return 'Silakan masuk terlebih dahulu untuk mengakses Kalender Layanan.';
+        return 'Silakan masuk terlebih dahulu untuk mengakses Cek Availability Multimedia.';
     }
     return 'Silakan masuk terlebih dahulu untuk melanjutkan ke halaman yang Anda tuju.';
 };

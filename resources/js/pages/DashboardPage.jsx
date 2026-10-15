@@ -24,7 +24,7 @@ export default function DashboardPage({ onSelectService, onGoToTracking }) {
 
             if (requestsRes.data?.status === 'success') {
                 const list = requestsRes.data.data.data || [];
-                const active = list.filter(r => ['Diajukan', 'Diproses', 'Direvisi', 'Menunggu Approval Sebagian'].includes(r.status)).length;
+                const active = list.filter(r => !['Selesai', 'Ditolak'].includes(r.status)).length;
                 const completed = list.filter(r => r.status === 'Selesai').length;
                 const needsApproval = list.filter(r => r.status === 'Menunggu Approval Sebagian').length;
 

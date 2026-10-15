@@ -274,6 +274,7 @@ class MasterDataSeeder extends Seeder
 5. **Jenis Layanan Peliputan**:
    - Wawancara
    - Penulisan berita
+   - Meliput kegiatan
 6. **Ketentuan Persetujuan & Publikasi**:
    - Humas berhak menentukan bentuk, sudut pemberitaan, dan jadwal publikasi sesuai standar komunikasi institusi.
    - Verifikator berhak untuk menolak permohonan peliputan apabila kegiatan yang diajukan tidak sesuai dengan kriteria kegiatan (poin 3).

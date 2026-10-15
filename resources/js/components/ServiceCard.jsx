@@ -62,21 +62,16 @@ export default function ServiceCard({ service, onSelect }) {
             className={`group relative bg-white rounded-2xl border ${theme.border} p-6 shadow-sm hover:shadow-xl ${theme.shadow} transition-all duration-300 transform hover:-translate-y-1 cursor-pointer flex flex-col justify-between`}
         >
             <div>
-                {/* Header: Icon & Code Badge */}
+                {/* Header: Icon & Active Requests Badge */}
                 <div className="flex items-center justify-between mb-4">
                     <div className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${theme.gradient} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform duration-300`}>
                         <IconComponent className="w-6 h-6" />
                     </div>
-                    <div className="flex items-center space-x-2">
-                        {service.active_requests_count > 0 && (
-                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
-                                {service.active_requests_count} aktif
-                            </span>
-                        )}
-                        <span className={`text-xs font-black px-2.5 py-1 rounded-lg ${theme.badge}`}>
-                            [{service.code}]
+                    {service.active_requests_count > 0 && (
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                            {service.active_requests_count} aktif
                         </span>
-                    </div>
+                    )}
                 </div>
 
                 {/* Name & Description */}

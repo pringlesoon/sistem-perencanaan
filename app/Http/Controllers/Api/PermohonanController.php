@@ -10,6 +10,7 @@ use App\Models\RequestMultimediaDetail;
 use App\Models\RequestSuvenirDetail;
 use App\Models\Service;
 use App\Models\StatusHistory;
+use App\Models\StatusHistoryAttachment;
 use App\Models\User;
 use App\Services\MultimediaSchedulingService;
 use App\Services\SuvenirApprovalService;
@@ -72,6 +73,12 @@ class PermohonanController extends Controller
         // Filter: Status
         if ($request->filled('status') && $request->status !== 'Semua') {
             $query->where('status', $request->status);
+        }
+
+        // Filter: Arsip
+        if ($request->has('is_archived')) {
+            $isArchived = filter_var($request->input('is_archived'), FILTER_VALIDATE_BOOLEAN);
+            $query->where('is_archived', $isArchived);
         }
 
         // Filter: Layanan / Kategori
@@ -584,24 +591,17 @@ class PermohonanController extends Controller
                 $permohonan->selesai_at = Carbon::now();
                 $diff = $permohonan->created_at->diffInMinutes(Carbon::now());
                 $permohonan->lead_time_minutes = $diff;
+
+                // Potong stok inventaris gudang HANYA ketika status permohonan diubah menjadi Selesai
+                if ($oldStatus !== 'Selesai') {
+                    $this->suvenirService->deductStockOnComplete($permohonan, $user);
+                }
+            } elseif ($oldStatus === 'Selesai' && $newStatus !== 'Selesai') {
+                // Kembalikan stok jika status permohonan dibatalkan/diubah dari Selesai
+                $this->suvenirService->restoreStockOnRevert($permohonan, $user, $newStatus);
             }
 
             $permohonan->save();
-
-            // Simpan unggahan lampiran hasil revisi / dokumen pemeriksaan jika ada (terutama PIC Publikasi)
-            if ($request->hasFile('revision_file')) {
-                $file = $request->file('revision_file');
-                $fileName = $file->getClientOriginalName();
-                $filePath = $file->store('attachments', 'public');
-
-                RequestAttachment::create([
-                    'permohonan_id' => $permohonan->id,
-                    'file_name' => '[Hasil Revisi/Pemeriksaan] ' . $fileName,
-                    'file_path' => $filePath,
-                    'file_size' => $file->getSize(),
-                    'mime_type' => $file->getClientMimeType(),
-                ]);
-            }
 
             $actorTitle = match ($user->role) {
                 'PIC' => 'PIC ' . ($permohonan->service?->name ?? 'Layanan'),
@@ -609,14 +609,38 @@ class PermohonanController extends Controller
                 default => 'Admin'
             };
 
-            // Append-Only Status History
-            StatusHistory::create([
+            // 1. Buat record StatusHistory terlebih dahulu
+            $statusHistory = StatusHistory::create([
                 'permohonan_id' => $permohonan->id,
                 'user_id' => $user->id,
                 'status_sebelumnya' => $oldStatus,
                 'status_baru' => $newStatus,
                 'catatan' => $request->catatan ?? "Status diperbarui dari {$oldStatus} menjadi {$newStatus} oleh {$actorTitle} ({$user->name}).",
             ]);
+
+            // 2. Simpan multiple lampiran berkas hasil revisi jika ada (multiple attachments)
+            $uploadedFiles = [];
+            if ($request->hasFile('revision_files')) {
+                $files = $request->file('revision_files');
+                $uploadedFiles = is_array($files) ? $files : [$files];
+            } elseif ($request->hasFile('revision_file')) {
+                $uploadedFiles = [$request->file('revision_file')];
+            }
+
+            foreach ($uploadedFiles as $file) {
+                if ($file && $file->isValid()) {
+                    $fileName = $file->getClientOriginalName();
+                    $filePath = $file->store('attachments/revisions', 'public');
+
+                    StatusHistoryAttachment::create([
+                        'status_history_id' => $statusHistory->id,
+                        'file_name' => '[Hasil Revisi] ' . $fileName,
+                        'file_path' => $filePath,
+                        'file_size' => $file->getSize(),
+                        'mime_type' => $file->getClientMimeType(),
+                    ]);
+                }
+            }
 
             // Kirim Notifikasi in-app ke Pemohon (FR-NOTIF-01)
             $type = match ($newStatus) {
@@ -706,6 +730,9 @@ class PermohonanController extends Controller
         $request->validate([
             'decision' => 'required|string|in:approve,reject',
             'catatan' => 'nullable|string',
+            'items' => 'nullable|array',
+            'items.*.nama_item' => 'required_with:items|string',
+            'items.*.qty_disetujui' => 'required_with:items|integer|min:0',
         ]);
 
         if ($permohonan->kategori !== 'Suvenir' && $permohonan->service?->code !== 'S') {
@@ -719,7 +746,8 @@ class PermohonanController extends Controller
             $permohonan,
             $user,
             $request->decision,
-            $request->catatan
+            $request->catatan,
+            $request->input('items')
         );
 
         $actionText = $request->decision === 'approve' ? 'disetujui' : 'ditolak';
@@ -730,4 +758,134 @@ class PermohonanController extends Controller
             'data' => $updatedPermohonan,
         ]);
     }
+
+    /**
+     * Arsipkan atau kembalikan permohonan dari arsip (Toggle Archive)
+     * Hanya berlaku untuk permohonan berstatus 'Selesai' atau 'Ditolak'
+     */
+    public function toggleArchive(Request $request, int $id): JsonResponse
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthenticated'], 401);
+        }
+
+        $permohonan = Permohonan::with(['service', 'user', 'multimediaDetail', 'suvenirDetail'])->findOrFail($id);
+
+        // Hanya permohonan dengan status Selesai atau Ditolak yang boleh diarsipkan
+        if (!in_array($permohonan->status, ['Selesai', 'Ditolak'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Hanya permohonan berstatus 'Selesai' atau 'Ditolak' yang dapat diarsipkan.",
+            ], 422);
+        }
+
+        // Otorisasi: Admin, SuperAdmin, PIC untuk layanannya, atau Pemohon pemilik permohonan
+        $isAuthorized = false;
+        if (in_array($user->role, ['Admin', 'SuperAdmin'])) {
+            $isAuthorized = true;
+        } elseif ($user->role === 'PIC') {
+            $picCatMap = ['D' => 'Desain', 'P' => 'Publikasi', 'S' => 'Suvenir', 'M' => 'Multimedia', 'L' => 'Liputan'];
+            $catName = $picCatMap[$user->pic_service_code] ?? null;
+            if ($permohonan->service?->code === $user->pic_service_code || ($catName && str_contains($permohonan->kategori ?? '', $catName))) {
+                $isAuthorized = true;
+            }
+        } elseif ($user->role === 'User' && $permohonan->user_id === $user->id) {
+            $isAuthorized = true;
+        }
+
+        if (!$isAuthorized) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akses ditolak. Anda tidak memiliki izin untuk mengarsipkan permohonan ini.',
+            ], 403);
+        }
+
+        $targetArchived = $request->has('is_archived')
+            ? filter_var($request->input('is_archived'), FILTER_VALIDATE_BOOLEAN)
+            : !$permohonan->is_archived;
+
+        $permohonan->is_archived = $targetArchived;
+        $permohonan->archived_at = $targetArchived ? Carbon::now() : null;
+        $permohonan->save();
+
+        StatusHistory::create([
+            'permohonan_id' => $permohonan->id,
+            'user_id' => $user->id,
+            'status_sebelumnya' => $permohonan->status,
+            'status_baru' => $targetArchived ? 'Diarsipkan' : $permohonan->status,
+            'catatan' => $targetArchived ? 'Permohonan dimasukkan ke arsip.' : 'Permohonan dikembalikan dari arsip ke daftar aktif.',
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $targetArchived ? 'Permohonan berhasil diarsipkan.' : 'Permohonan berhasil dikembalikan dari arsip.',
+            'data' => $permohonan->fresh(['user', 'service', 'multimediaDetail', 'suvenirDetail']),
+        ]);
+    }
+
+    /**
+     * Unduh berkas lampiran utama permohonan dengan nama asli file
+     */
+    public function downloadAttachment(int $id)
+    {
+        $attachment = RequestAttachment::findOrFail($id);
+
+        $filePath = Storage::disk('public')->path($attachment->file_path);
+        if (!file_exists($filePath)) {
+            abort(404, 'File lampiran tidak ditemukan.');
+        }
+
+        $downloadName = $attachment->clean_file_name ?: $attachment->file_name;
+
+        return response()->download($filePath, $downloadName, [
+            'Content-Type' => $attachment->mime_type ?: 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="' . addcslashes($downloadName, '"') . '"',
+        ]);
+    }
+
+    /**
+     * Unduh berkas hasil revisi dari riwayat status dengan nama asli file
+     */
+    public function downloadStatusHistoryFile(int $id)
+    {
+        $history = StatusHistory::findOrFail($id);
+
+        if (!$history->file_path) {
+            abort(404, 'Riwayat status ini tidak memiliki lampiran berkas.');
+        }
+
+        $filePath = Storage::disk('public')->path($history->file_path);
+        if (!file_exists($filePath)) {
+            abort(404, 'File lampiran revisi tidak ditemukan.');
+        }
+
+        $downloadName = $history->clean_file_name ?: $history->file_name;
+
+        return response()->download($filePath, $downloadName, [
+            'Content-Type' => $history->mime_type ?: 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="' . addcslashes($downloadName, '"') . '"',
+        ]);
+    }
+
+    /**
+     * Unduh berkas hasil revisi spesifik dari status_history_attachments dengan nama asli file
+     */
+    public function downloadStatusHistoryAttachment(int $id)
+    {
+        $attachment = StatusHistoryAttachment::findOrFail($id);
+
+        $filePath = Storage::disk('public')->path($attachment->file_path);
+        if (!file_exists($filePath)) {
+            abort(404, 'File lampiran revisi tidak ditemukan.');
+        }
+
+        $downloadName = $attachment->clean_file_name ?: $attachment->file_name;
+
+        return response()->download($filePath, $downloadName, [
+            'Content-Type' => $attachment->mime_type ?: 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="' . addcslashes($downloadName, '"') . '"',
+        ]);
+    }
 }
+

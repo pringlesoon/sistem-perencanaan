@@ -18,6 +18,7 @@ import {
     Search,
     Filter,
     Download,
+    FileSpreadsheet,
     Eye,
     X,
     Calendar,
@@ -34,6 +35,9 @@ import {
     LayoutGrid,
     AlertCircle,
     ChevronRight,
+    ChevronLeft,
+    ChevronsLeft,
+    ChevronsRight,
     Video,
     Gift,
     Megaphone,
@@ -45,7 +49,9 @@ import {
     Phone,
     MapPin,
     User,
-    Tag
+    Tag,
+    Archive,
+    ArchiveRestore
 } from 'lucide-react';
 
 // --- Service definitions ---
@@ -85,10 +91,10 @@ const DEFAULT_KANBAN_COLUMNS = [
 // Per-service status flows
 const SERVICE_STATUS_FLOWS = {
     D: ['Diajukan', 'Diproses', 'Direvisi', 'Selesai', 'Ditolak'],
-    P: ['Diajukan', 'Pemeriksaan Konten', 'Publikasi', 'Selesai', 'Ditolak'],
+    P: ['Diajukan', 'Produksi/Pemeriksaan Konten', 'Proses Tayang', 'Selesai', 'Ditolak'],
     S: ['Diajukan', 'Menunggu Approval', 'Diproses', 'Selesai', 'Ditolak'],
     M: ['Diajukan', 'Diproses', 'Selesai', 'Ditolak'],
-    L: ['Diajukan', 'Diproses', 'Selesai', 'Ditolak'],
+    L: ['Diajukan', 'Terjadwalkan/Produksi Berita', 'Selesai', 'Ditolak'],
 };
 
 const SERVICE_KANBAN = {
@@ -101,8 +107,8 @@ const SERVICE_KANBAN = {
     ],
     P: [
         { key: 'Diajukan', label: 'Diajukan', color: 'amber', bgCard: 'bg-amber-50', borderColor: 'border-amber-200', headerBg: 'bg-amber-100', textColor: 'text-amber-800' },
-        { key: 'Pemeriksaan Konten', label: 'Pemeriksaan Konten', color: 'sky', bgCard: 'bg-sky-50', borderColor: 'border-sky-200', headerBg: 'bg-sky-100', textColor: 'text-sky-800' },
-        { key: 'Publikasi', label: 'Publikasi', color: 'blue', bgCard: 'bg-blue-50', borderColor: 'border-blue-200', headerBg: 'bg-blue-100', textColor: 'text-blue-800' },
+        { key: 'Produksi/Pemeriksaan Konten', label: 'Produksi/Pemeriksaan Konten', color: 'sky', bgCard: 'bg-sky-50', borderColor: 'border-sky-200', headerBg: 'bg-sky-100', textColor: 'text-sky-800' },
+        { key: 'Proses Tayang', label: 'Proses Tayang', color: 'blue', bgCard: 'bg-blue-50', borderColor: 'border-blue-200', headerBg: 'bg-blue-100', textColor: 'text-blue-800' },
         { key: 'Selesai', label: 'Selesai', color: 'emerald', bgCard: 'bg-emerald-50', borderColor: 'border-emerald-200', headerBg: 'bg-emerald-100', textColor: 'text-emerald-800' },
         { key: 'Ditolak', label: 'Ditolak', color: 'rose', bgCard: 'bg-rose-50', borderColor: 'border-rose-200', headerBg: 'bg-rose-100', textColor: 'text-rose-800' },
     ],
@@ -121,7 +127,7 @@ const SERVICE_KANBAN = {
     ],
     L: [
         { key: 'Diajukan', label: 'Diajukan', color: 'amber', bgCard: 'bg-amber-50', borderColor: 'border-amber-200', headerBg: 'bg-amber-100', textColor: 'text-amber-800' },
-        { key: 'Diproses', label: 'Diproses', color: 'blue', bgCard: 'bg-blue-50', borderColor: 'border-blue-200', headerBg: 'bg-blue-100', textColor: 'text-blue-800' },
+        { key: 'Terjadwalkan/Produksi Berita', label: 'Terjadwalkan/Produksi Berita', color: 'blue', bgCard: 'bg-blue-50', borderColor: 'border-blue-200', headerBg: 'bg-blue-100', textColor: 'text-blue-800' },
         { key: 'Selesai', label: 'Selesai', color: 'emerald', bgCard: 'bg-emerald-50', borderColor: 'border-emerald-200', headerBg: 'bg-emerald-100', textColor: 'text-emerald-800' },
         { key: 'Ditolak', label: 'Ditolak', color: 'rose', bgCard: 'bg-rose-50', borderColor: 'border-rose-200', headerBg: 'bg-rose-100', textColor: 'text-rose-800' },
     ],
@@ -131,7 +137,10 @@ const statusBadgeStyles = {
     'Diajukan': 'bg-amber-50 text-amber-800 border-amber-200',
     'Menunggu Approval': 'bg-purple-50 text-purple-800 border-purple-200',
     'Diproses': 'bg-blue-50 text-blue-800 border-blue-200',
+    'Terjadwalkan/Produksi Berita': 'bg-blue-50 text-blue-800 border-blue-200',
     'Direvisi': 'bg-orange-50 text-orange-800 border-orange-200',
+    'Produksi/Pemeriksaan Konten': 'bg-sky-50 text-sky-800 border-sky-200',
+    'Proses Tayang': 'bg-blue-50 text-blue-800 border-blue-200',
     'Pemeriksaan Konten': 'bg-sky-50 text-sky-800 border-sky-200',
     'Publikasi': 'bg-blue-50 text-blue-800 border-blue-200',
     'Menunggu Approval Sebagian': 'bg-purple-50 text-purple-800 border-purple-200',
@@ -203,7 +212,7 @@ function formatShortDate(val) {
     return str;
 }
 
-function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDragEnd }) {
+function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDragEnd, onToggleArchive, isArchiving }) {
     const formData = (typeof req.form_data === 'string')
         ? (() => { try { return JSON.parse(req.form_data); } catch { return {}; } })()
         : (req.form_data || {});
@@ -236,6 +245,7 @@ function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDra
 
     const rawEventDate = formData.tanggal_kegiatan || formData.tanggal_dibutuhkan || req.tanggal_dibutuhkan || formData.deadline || formData.tanggal_publikasi || formData.tanggal_produksi;
     const eventDate = formatShortDate(rawEventDate);
+    const canArchive = ['Selesai', 'Ditolak'].includes(req.status) || ['Selesai', 'Ditolak'].includes(column.key);
 
     return (
         <div
@@ -253,9 +263,17 @@ function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDra
             )}
 
             <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-[11px] font-bold text-indigo-700 bg-white px-2 py-0.5 rounded-md border border-indigo-100">
-                    {req.nomor_tiket}
-                </span>
+                <div className="flex items-center space-x-1.5 min-w-0">
+                    <span className="font-mono text-[11px] font-bold text-indigo-700 bg-white px-2 py-0.5 rounded-md border border-indigo-100">
+                        {req.nomor_tiket}
+                    </span>
+                    {req.is_archived && (
+                        <span className="inline-flex items-center space-x-0.5 text-[9px] font-bold text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-200">
+                            <Archive className="w-2.5 h-2.5" />
+                            <span>Archive</span>
+                        </span>
+                    )}
+                </div>
                 <span className="text-[10px] text-slate-400">
                     {new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
                 </span>
@@ -300,12 +318,42 @@ function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDra
                         <span className="text-[9px] text-slate-400 truncate block">{formData.unit_pemohon || req.user?.unit_kerja || 'Unit Kerja'}</span>
                     </div>
                 </div>
-                {req.calculated_lead_time && (
-                    <div className="flex items-center space-x-0.5 text-[10px] text-slate-500 shrink-0 ml-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{req.calculated_lead_time}</span>
-                    </div>
-                )}
+                <div className="flex items-center space-x-1.5 shrink-0 ml-1">
+                    {req.calculated_lead_time && (
+                        <div className="flex items-center space-x-0.5 text-[10px] text-slate-500">
+                            <Clock className="w-3 h-3" />
+                            <span>{req.calculated_lead_time}</span>
+                        </div>
+                    )}
+                    {canArchive && onToggleArchive && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleArchive(req, e);
+                            }}
+                            disabled={isArchiving}
+                            title={req.is_archived ? "Batal Archive (Kembalikan ke Papan Utama)" : "Archive Permohonan"}
+                            className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer flex items-center space-x-1 shadow-2xs hover:scale-105 active:scale-95 ${
+                                req.is_archived
+                                    ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'
+                                    : 'bg-white text-slate-600 hover:text-indigo-600 border-slate-200 hover:bg-slate-50'
+                            } ${isArchiving ? 'opacity-40 cursor-wait' : ''}`}
+                        >
+                            {req.is_archived ? (
+                                <>
+                                    <ArchiveRestore className="w-3 h-3 text-amber-700" />
+                                    <span>Batal Archive</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Archive className="w-3 h-3 text-slate-500" />
+                                    <span>Archive</span>
+                                </>
+                            )}
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -349,6 +397,8 @@ function RequestFormDetail({ detail, user, onRefresh }) {
 
     const isPicForS = (user?.role === 'PIC' && (user?.pic_service_code === 'S' || user?.username?.toLowerCase() === 'bagas')) || ['Admin', 'SuperAdmin'].includes(user?.role);
     const isAdminApprover = ['Admin', 'SuperAdmin'].includes(user?.role);
+    const canViewStock = ['Admin', 'SuperAdmin', 'PIC'].includes(user?.role);
+    const canEditQuota = (detail.status === 'Diajukan' && isPicForS) || (detail.status === 'Menunggu Approval' && (isAdminApprover || isPicForS));
 
     const [inventoryStocks, setInventoryStocks] = useState({});
     const [souvenirEditItems, setSouvenirEditItems] = useState([]);
@@ -416,7 +466,7 @@ function RequestFormDetail({ detail, user, onRefresh }) {
             };
             const res = await api.post(`/requests/${detail.id}/confirm-quota-pic`, payload);
             if (res.data?.status === 'success') {
-                setActionMsg({ type: 'success', text: 'Kuota berhasil dikonfirmasi dan diteruskan ke Admin untuk approval!' });
+                setActionMsg({ type: 'success', text: 'Perubahan unit suvenir berhasil disimpan!' });
                 if (onRefresh) onRefresh();
             }
         } catch (err) {
@@ -434,6 +484,7 @@ function RequestFormDetail({ detail, user, onRefresh }) {
             const payload = {
                 decision,
                 catatan: adminCatatan,
+                items: souvenirEditItems,
             };
             const res = await api.post(`/requests/${detail.id}/approve`, payload);
             if (res.data?.status === 'success') {
@@ -508,7 +559,7 @@ function RequestFormDetail({ detail, user, onRefresh }) {
                         </span>
                     </div>
                     <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Program Studi / Unit Kerja</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Unit Pemohon</span>
                         <span className="font-semibold text-slate-800 text-xs">
                             {formData?.unit_pemohon || detail.user?.unit_kerja || '-'}
                         </span>
@@ -625,9 +676,11 @@ function RequestFormDetail({ detail, user, onRefresh }) {
                                         <th className="px-3 py-2 w-10">No</th>
                                         <th className="px-3 py-2">Nama Item Suvenir</th>
                                         <th className="px-3 py-2 text-center w-24">Jumlah Diminta</th>
-                                        <th className="px-3 py-2 text-center w-28">Stok Gudang</th>
+                                        {canViewStock && (
+                                            <th className="px-3 py-2 text-center w-28">Stok Gudang</th>
+                                        )}
                                         <th className="px-3 py-2 text-right w-36">
-                                            {detail.status === 'Diajukan' && isPicForS ? 'Disetujui PIC' : 'Disetujui'}
+                                            {canEditQuota ? 'Unit Disetujui' : 'Disetujui'}
                                         </th>
                                     </tr>
                                 </thead>
@@ -644,17 +697,19 @@ function RequestFormDetail({ detail, user, onRefresh }) {
                                                 <td className="px-3 py-2.5 text-center font-mono font-bold text-slate-700">
                                                     {it.qty} unit
                                                 </td>
-                                                <td className="px-3 py-2.5 text-center">
-                                                    {stock !== undefined ? (
-                                                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${isLowStock ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'}`}>
-                                                            {stock} unit
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[10px] text-slate-400 font-medium">-</span>
-                                                    )}
-                                                </td>
+                                                {canViewStock && (
+                                                    <td className="px-3 py-2.5 text-center">
+                                                        {stock !== undefined ? (
+                                                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${isLowStock ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'}`}>
+                                                                {stock} unit
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[10px] text-slate-400 font-medium">-</span>
+                                                        )}
+                                                    </td>
+                                                )}
                                                 <td className="px-3 py-2.5 text-right">
-                                                    {detail.status === 'Diajukan' && isPicForS ? (
+                                                    {canEditQuota ? (
                                                         <div className="flex items-center justify-end space-x-1">
                                                             <input
                                                                 type="number"
@@ -717,7 +772,7 @@ function RequestFormDetail({ detail, user, onRefresh }) {
                             </div>
                         )}
 
-                        {/* Aksi Admin saat Status Menunggu Approval */}
+                        {/* Aksi Admin / PIC saat Status Menunggu Approval */}
                         {detail.status === 'Menunggu Approval' && (
                             <div className="space-y-2 mt-2">
                                 {(detail.suvenir_detail?.catatan_approver || formData?.pic_verification_note) && (
@@ -732,7 +787,7 @@ function RequestFormDetail({ detail, user, onRefresh }) {
                                         <div>
                                             <h5 className="font-bold text-purple-950 text-xs">Persetujuan Permohonan oleh Admin / Pimpinan</h5>
                                             <p className="text-[11px] text-purple-800 mt-0.5">
-                                                Menyetujui permohonan ini akan mengubah status menjadi <strong>Diproses</strong> dan otomatis memotong stok barang di inventaris sesuai kuota PIC.
+                                                Anda dapat mengedit jumlah unit disetujui pada tabel di atas jika diperlukan. Menyetujui permohonan ini akan mengubah status menjadi <strong>Diproses</strong> dan otomatis memotong stok barang di inventaris sesuai unit yang disetujui.
                                             </p>
                                         </div>
                                         <div>
@@ -767,6 +822,30 @@ function RequestFormDetail({ detail, user, onRefresh }) {
                                                 <span>Tolak Permohonan</span>
                                             </button>
                                         </div>
+                                    </div>
+                                ) : isPicForS ? (
+                                    <div className="p-4 bg-purple-50/80 rounded-xl border border-purple-300 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs font-bold text-purple-950 flex items-center space-x-1.5">
+                                                <Clock className="w-4 h-4 text-purple-600" />
+                                                <span>Status: Menunggu Approval Admin</span>
+                                            </span>
+                                            <span className="text-[11px] font-bold text-purple-900">
+                                                Total Dialokasikan: <strong>{souvenirEditItems.reduce((acc, c) => acc + (c.qty_disetujui || 0), 0)} unit</strong>
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-purple-800">
+                                            Sebagai PIC, Anda masih dapat mengedit jumlah unit barang yang diajukan pada tabel di atas jika terdapat penyesuaian kuota. Klik tombol di bawah untuk menyimpan perubahan unit barang.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={handleConfirmQuotaByPic}
+                                            disabled={submittingPic}
+                                            className="w-full py-2.5 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+                                        >
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            <span>{submittingPic ? 'Menyimpan Perubahan...' : 'Simpan Perubahan Unit Barang'}</span>
+                                        </button>
                                     </div>
                                 ) : (
                                     <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 text-xs text-purple-900 flex items-center space-x-2">
@@ -1130,6 +1209,10 @@ export default function TrackingPage({ defaultSelectedId }) {
     const [loading, setLoading] = useState(false);
     const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'table'
 
+    // Pagination state (10 baris per halaman)
+    const ITEMS_PER_PAGE = 10;
+    const [currentPage, setCurrentPage] = useState(1);
+
     // Filter states
     const isPic = user?.role === 'PIC';
     const fallbackPicMap = { ahmad: 'D', nurhaliza: 'P', bagas: 'S', dewi: 'M', rizky: 'L' };
@@ -1139,6 +1222,10 @@ export default function TrackingPage({ defaultSelectedId }) {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [dateSort, setDateSort] = useState('desc'); // 'desc' (Terbaru) | 'asc' (Terlama)
+    const [showArchived, setShowArchived] = useState(false); // Toggle lihat archive vs aktif
+    const [statusFilter, setStatusFilter] = useState(''); // Filter status per-layanan
+    const [archivingId, setArchivingId] = useState(null);
+    const [archiveConfirmModal, setArchiveConfirmModal] = useState({ isOpen: false, req: null, willArchive: true });
 
     // Active service: for PIC it is strictly locked to their service code
     const activeService = isPic ? (picServiceCode || '') : serviceFilter;
@@ -1151,7 +1238,7 @@ export default function TrackingPage({ defaultSelectedId }) {
     const [updateModalOpen, setUpdateModalOpen] = useState(false);
     const [targetStatus, setTargetStatus] = useState('');
     const [statusNote, setStatusNote] = useState('');
-    const [revisionFile, setRevisionFile] = useState(null);
+    const [revisionFiles, setRevisionFiles] = useState([]);
     const [submittingStatus, setSubmittingStatus] = useState(false);
     const [statusError, setStatusError] = useState(null);
 
@@ -1167,10 +1254,16 @@ export default function TrackingPage({ defaultSelectedId }) {
     const canDrag = isAdmin || isPic;
     const canUpdateStatus = isAdmin || isPic;
 
-    // Get service-specific kanban columns
-    const activeKanbanColumns = activeService
-        ? (SERVICE_KANBAN[activeService] || DEFAULT_KANBAN_COLUMNS)
-        : DEFAULT_KANBAN_COLUMNS;
+    // Get service-specific kanban columns (Di mode Archive, HANYA tampilkan status Selesai & Ditolak)
+    const activeKanbanColumns = React.useMemo(() => {
+        const base = activeService
+            ? (SERVICE_KANBAN[activeService] || DEFAULT_KANBAN_COLUMNS)
+            : DEFAULT_KANBAN_COLUMNS;
+        if (showArchived) {
+            return base.filter(col => ['Selesai', 'Ditolak'].includes(col.key));
+        }
+        return base;
+    }, [activeService, showArchived]);
 
     // Get available status options for update modal based on service
     const getStatusOptions = (customServiceCode = null) => {
@@ -1179,7 +1272,7 @@ export default function TrackingPage({ defaultSelectedId }) {
         return flow.filter(s => s !== 'Diajukan');
     };
 
-    const loadRequests = async () => {
+    const loadRequests = async (overrideArchived = null, overrideStatus = null) => {
         if (!activeService) {
             setRequests([]);
             setLoading(false);
@@ -1187,9 +1280,13 @@ export default function TrackingPage({ defaultSelectedId }) {
         }
         setLoading(true);
         try {
+            const isArchivedParam = overrideArchived !== null ? overrideArchived : showArchived;
+            const currentStatus = overrideStatus !== null ? overrideStatus : statusFilter;
             const params = new URLSearchParams();
-            params.append('per_page', '100');
+            params.append('per_page', '500');
             params.append('service_code', activeService);
+            params.append('is_archived', isArchivedParam ? '1' : '0');
+            if (currentStatus) params.append('status', currentStatus);
             if (searchTerm) params.append('search', searchTerm);
 
             const res = await api.get(`/requests?${params.toString()}`);
@@ -1212,11 +1309,49 @@ export default function TrackingPage({ defaultSelectedId }) {
 
     useEffect(() => {
         loadRequests();
-    }, [activeService, searchTerm, user]);
+    }, [activeService, searchTerm, showArchived, statusFilter, user]);
+
+    // Reset pagination to page 1 whenever filters or service change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeService, searchTerm, statusFilter, dateFrom, dateTo, dateSort, showArchived]);
+
+    // Trigger custom confirmation modal instead of browser window.confirm
+    const handleToggleArchive = (req, e = null) => {
+        if (e) e.stopPropagation();
+        setArchiveConfirmModal({
+            isOpen: true,
+            req,
+            willArchive: !req.is_archived,
+        });
+    };
+
+    // Execute archive / unarchive after user confirms in the custom modal
+    const handleConfirmArchive = async () => {
+        if (!archiveConfirmModal.req) return;
+        const req = archiveConfirmModal.req;
+        const willArchive = archiveConfirmModal.willArchive;
+
+        setArchivingId(req.id);
+        try {
+            const res = await api.post(`/requests/${req.id}/archive`, { is_archived: willArchive });
+            if (res.data?.status === 'success') {
+                setRequests(prev => prev.map(r => r.id === req.id ? { ...r, is_archived: willArchive, archived_at: willArchive ? new Date().toISOString() : null } : r));
+                if (selectedDetail && selectedDetail.id === req.id) {
+                    setSelectedDetail(prev => prev ? { ...prev, is_archived: willArchive, archived_at: willArchive ? new Date().toISOString() : null } : null);
+                }
+                setArchiveConfirmModal({ isOpen: false, req: null, willArchive: true });
+            }
+        } catch (err) {
+            alert(err.response?.data?.message || 'Gagal memperbarui status archive.');
+        } finally {
+            setArchivingId(null);
+        }
+    };
 
     const openDetail = async (id) => {
         setLoadingDetail(true);
-        setRevisionFile(null);
+        setRevisionFiles([]);
         try {
             const res = await api.get(`/requests/${id}`);
             if (res.data?.status === 'success') {
@@ -1238,7 +1373,7 @@ export default function TrackingPage({ defaultSelectedId }) {
     const openUpdateModalForReq = (req) => {
         setStatusError(null);
         setStatusNote('');
-        setRevisionFile(null);
+        setRevisionFiles([]);
         setSelectedDetail(req);
         const reqServiceCode = req.service?.code || activeService;
         const flow = SERVICE_STATUS_FLOWS[reqServiceCode] || ['Diajukan', 'Diproses', 'Direvisi', 'Selesai', 'Ditolak'];
@@ -1246,6 +1381,21 @@ export default function TrackingPage({ defaultSelectedId }) {
         const nextStatus = flow[currentIdx + 1] || flow[flow.length - 2] || 'Diproses';
         setTargetStatus(nextStatus);
         setUpdateModalOpen(true);
+    };
+
+    const handleRevisionFilesChange = (e) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        setRevisionFiles(prev => {
+            const existingKeys = new Set(prev.map(f => `${f.name}-${f.size}`));
+            const newFiles = files.filter(f => !existingKeys.has(`${f.name}-${f.size}`));
+            return [...prev, ...newFiles];
+        });
+        e.target.value = '';
+    };
+
+    const removeRevisionFile = (indexToRemove) => {
+        setRevisionFiles(prev => prev.filter((_, idx) => idx !== indexToRemove));
     };
 
     useEffect(() => {
@@ -1270,8 +1420,10 @@ export default function TrackingPage({ defaultSelectedId }) {
             const formData = new FormData();
             formData.append('status', targetStatus);
             formData.append('catatan', statusNote);
-            if (revisionFile) {
-                formData.append('revision_file', revisionFile);
+            if (revisionFiles && revisionFiles.length > 0) {
+                revisionFiles.forEach(file => {
+                    formData.append('revision_files[]', file);
+                });
             }
 
             const res = await api.post(`/requests/${selectedDetail.id}/status`, formData, {
@@ -1280,10 +1432,14 @@ export default function TrackingPage({ defaultSelectedId }) {
 
             if (res.data?.status === 'success') {
                 setRequests(prev => prev.map(r => r.id === selectedDetail.id ? { ...r, status: targetStatus } : r));
-                setSelectedDetail(prev => prev ? { ...prev, status: targetStatus } : null);
+                if (res.data?.data) {
+                    setSelectedDetail(res.data.data);
+                } else {
+                    setSelectedDetail(prev => prev ? { ...prev, status: targetStatus } : null);
+                }
                 setUpdateModalOpen(false);
                 setStatusNote('');
-                setRevisionFile(null);
+                setRevisionFiles([]);
                 loadRequests();
             }
         } catch (err) {
@@ -1356,13 +1512,13 @@ export default function TrackingPage({ defaultSelectedId }) {
     };
 
     const handleExport = (format) => {
-        if (!activeService) {
-            alert('Silakan pilih layanan terlebih dahulu sebelum melakukan export data.');
-            return;
-        }
         const params = new URLSearchParams();
-        params.append('service_code', activeService);
+        if (activeService) params.append('service_code', activeService);
+        params.append('is_archived', showArchived ? '1' : '0');
         if (searchTerm) params.append('search', searchTerm);
+        if (statusFilter && statusFilter !== 'Semua') params.append('status', statusFilter);
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
         window.open(`/api/v1/export/${format}?${params.toString()}`, '_blank');
     };
 
@@ -1370,7 +1526,20 @@ export default function TrackingPage({ defaultSelectedId }) {
     const processedRequests = React.useMemo(() => {
         let result = [...requests];
 
-        // 1. Date Range Filtering
+        // 0. Filter Archive vs Aktif
+        result = result.filter(r => showArchived ? !!r.is_archived : !r.is_archived);
+
+        // Di mode Archive, HANYA tampilkan status 'Selesai' dan 'Ditolak'
+        if (showArchived) {
+            result = result.filter(r => ['Selesai', 'Ditolak'].includes(r.status));
+        }
+
+        // 1. Filter Status jika dipilih
+        if (statusFilter) {
+            result = result.filter(r => r.status === statusFilter);
+        }
+
+        // 2. Date Range Filtering
         if (dateFrom) {
             const from = new Date(dateFrom);
             from.setHours(0, 0, 0, 0);
@@ -1382,7 +1551,7 @@ export default function TrackingPage({ defaultSelectedId }) {
             result = result.filter(r => new Date(r.created_at) <= to);
         }
 
-        // 2. Date Sorting (Terbaru / Terlama)
+        // 3. Date Sorting (Terbaru / Terlama)
         result.sort((a, b) => {
             const timeA = new Date(a.created_at).getTime();
             const timeB = new Date(b.created_at).getTime();
@@ -1390,7 +1559,33 @@ export default function TrackingPage({ defaultSelectedId }) {
         });
 
         return result;
-    }, [requests, dateFrom, dateTo, dateSort]);
+    }, [requests, showArchived, statusFilter, dateFrom, dateTo, dateSort]);
+
+    // Pagination calculation for Table view (10 rows per page)
+    const totalItems = processedRequests.length;
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
+    const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+    const paginatedRequests = React.useMemo(() => {
+        const start = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+        return processedRequests.slice(start, start + ITEMS_PER_PAGE);
+    }, [processedRequests, safeCurrentPage]);
+
+    const startIndex = totalItems === 0 ? 0 : (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1;
+    const endIndex = Math.min(safeCurrentPage * ITEMS_PER_PAGE, totalItems);
+
+    const pageNumbers = React.useMemo(() => {
+        if (totalPages <= 7) {
+            return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+        if (safeCurrentPage <= 4) {
+            return [1, 2, 3, 4, 5, '...', totalPages];
+        }
+        if (safeCurrentPage >= totalPages - 3) {
+            return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+        }
+        return [1, '...', safeCurrentPage - 1, safeCurrentPage, safeCurrentPage + 1, '...', totalPages];
+    }, [safeCurrentPage, totalPages]);
 
     // Group requests for kanban
     const groupedRequests = React.useMemo(() => {
@@ -1401,7 +1596,7 @@ export default function TrackingPage({ defaultSelectedId }) {
                 grouped[req.status].push(req);
             } else if (!activeService) {
                 // Map intermediate service-specific statuses into Diproses column when viewing all services
-                if (['Pemeriksaan Konten', 'Publikasi', 'Menunggu Approval Sebagian'].includes(req.status)) {
+                if (['Pemeriksaan Konten', 'Produksi/Pemeriksaan Konten', 'Publikasi', 'Proses Tayang', 'Menunggu Approval Sebagian', 'Terjadwalkan/Produksi Berita'].includes(req.status)) {
                     if (grouped['Diproses']) grouped['Diproses'].push(req);
                 } else if (grouped['Diajukan']) {
                     grouped['Diajukan'].push(req);
@@ -1419,14 +1614,22 @@ export default function TrackingPage({ defaultSelectedId }) {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                        {isPic ? 'Daftar Permohonan Layanan Saya' : 'Tracking Permohonan & Riwayat Status'}
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                            {isPic ? 'Daftar Permohonan Layanan Saya' : 'Tracking Permohonan & Riwayat Status'}
+                        </h2>
+                        {isPic && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 rounded-xl text-xs font-bold text-green-800 shadow-2xs">
+                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                <span>PIC: {SERVICES.find(s => s.code === (user?.pic_service_code || activeService))?.name || 'Layanan'}</span>
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
                         {user?.role === 'User'
                             ? 'Pantau perkembangan dan estimasi Lead Time permohonan yang Anda ajukan.'
                             : isPic
-                                ? `Permohonan masuk ke layanan Anda (${SERVICES.find(s => s.code === activeService)?.name || `Layanan (${activeService})`}).`
+                                ? `Permohonan masuk ke layanan Anda (${SERVICES.find(s => s.code === activeService)?.name || 'Layanan'}).`
                                 : 'Manajemen antrean permohonan seluruh unit kerja internal.'}
                     </p>
                 </div>
@@ -1450,13 +1653,13 @@ export default function TrackingPage({ defaultSelectedId }) {
                         </button>
                     </div>
 
-                    {isAdmin && (
+                    {(isAdmin || isPic) && (
                         <div className="flex items-center space-x-2">
-                            <button onClick={() => handleExport('csv')} className="px-3 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold shadow-2xs flex items-center space-x-1.5 transition-colors cursor-pointer">
+                            <button onClick={() => handleExport('csv')} className="px-3 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold shadow-2xs flex items-center space-x-1.5 transition-colors cursor-pointer" title="Ekspor data ke CSV">
                                 <Download className="w-3.5 h-3.5 text-slate-500" /><span>CSV</span>
                             </button>
-                            <button onClick={() => handleExport('excel')} className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold shadow-2xs flex items-center space-x-1.5 transition-colors cursor-pointer">
-                                <Download className="w-3.5 h-3.5" /><span>Excel</span>
+                            <button onClick={() => handleExport('excel')} className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-2xs flex items-center space-x-1.5 transition-colors cursor-pointer" title="Ekspor data permohonan & riwayat status ke Excel">
+                                <FileSpreadsheet className="w-3.5 h-3.5" /><span>Ekspor Excel</span>
                             </button>
                         </div>
                     )}
@@ -1477,17 +1680,12 @@ export default function TrackingPage({ defaultSelectedId }) {
                     />
                 </div>
 
-                {/* Service Filter — locked badge for PIC, select for Admin/User */}
-                {isPic ? (
-                    <div className="flex items-center space-x-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-xl text-xs font-bold text-green-800 shadow-2xs">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <span>PIC: {SERVICES.find(s => s.code === (user?.pic_service_code || activeService))?.name || `Layanan (${activeService})`}</span>
-                    </div>
-                ) : (
+                {/* Service Filter — untuk Admin/User (jika bukan PIC) */}
+                {!isPic && (
                     <div className="min-w-[210px]">
                         <CustomSelect
                             value={serviceFilter}
-                            onChange={(val) => setServiceFilter(val)}
+                            onChange={(val) => { setServiceFilter(val); setStatusFilter(''); }}
                             options={[
                                 { value: '', label: 'Pilih Layanan', icon: Filter },
                                 ...SERVICES.map(svc => ({
@@ -1503,6 +1701,36 @@ export default function TrackingPage({ defaultSelectedId }) {
                         />
                     </div>
                 )}
+
+                {/* Filter Status — status disesuaikan dengan tahapan alur per-layanan */}
+                <div className="min-w-[170px]">
+                    <CustomSelect
+                        value={statusFilter}
+                        onChange={(val) => setStatusFilter(val)}
+                        options={[
+                            { value: '', label: showArchived ? 'Semua Status (Archive)' : 'Filter Status', icon: Filter },
+                            ...(showArchived
+                                ? ['Selesai', 'Ditolak']
+                                : (activeService
+                                    ? (SERVICE_STATUS_FLOWS[activeService] || DEFAULT_KANBAN_COLUMNS.map(c => c.key))
+                                    : ['Diajukan', 'Diproses', 'Direvisi', 'Selesai', 'Ditolak'])
+                            ).map(st => ({
+                                value: st,
+                                label: st,
+                                colorDot: st === 'Diajukan' ? 'bg-amber-500' :
+                                         st === 'Diproses' || st === 'Terjadwalkan/Produksi Berita' ? 'bg-blue-500' :
+                                         st === 'Direvisi' ? 'bg-orange-500' :
+                                         st === 'Selesai' ? 'bg-emerald-500' :
+                                         st === 'Ditolak' ? 'bg-rose-500' :
+                                         st.includes('Approval') ? 'bg-purple-500' :
+                                         st.includes('Pemeriksaan') || st.includes('Produksi') ? 'bg-sky-500' :
+                                         st.includes('Publikasi') || st.includes('Tayang') ? 'bg-blue-500' : 'bg-slate-400'
+                            }))
+                        ]}
+                        placeholder="Filter Status"
+                        className="bg-slate-50 hover:bg-white"
+                    />
+                </div>
 
                 {/* Date range */}
                 <div className="flex items-center space-x-1.5">
@@ -1532,19 +1760,43 @@ export default function TrackingPage({ defaultSelectedId }) {
                     </button>
                 </div>
 
-                {(dateFrom || dateTo || dateSort !== 'desc') && (
+                {/* Tombol Akses Archive di Filter Bar */}
+                <div className="flex items-center">
                     <button
                         type="button"
-                        onClick={() => { setDateFrom(''); setDateTo(''); setDateSort('desc'); }}
-                        className="px-2.5 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-xl font-semibold transition-colors cursor-pointer"
-                        title="Reset filter tanggal dan pengurutan ke kondisi default"
+                        onClick={() => setShowArchived(prev => !prev)}
+                        className={`flex items-center space-x-1.5 px-3 py-2 border rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                            showArchived
+                                ? 'bg-amber-500 border-amber-600 text-white shadow-xs ring-2 ring-amber-300/60'
+                                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                        title={showArchived ? 'Sedang melihat permohonan yang di-archive. Klik untuk kembali ke permohonan aktif.' : 'Klik untuk melihat permohonan yang telah di-archive'}
                     >
-                        Reset Tanggal
+                        {showArchived ? (
+                            <ArchiveRestore className="w-3.5 h-3.5 text-white" />
+                        ) : (
+                            <Archive className="w-3.5 h-3.5 text-slate-500" />
+                        )}
+                        <span>{showArchived ? 'Menampilkan Archive' : 'Lihat Archive'}</span>
+                        {showArchived && (
+                            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                        )}
+                    </button>
+                </div>
+
+                {(dateFrom || dateTo || dateSort !== 'desc' || showArchived || statusFilter) && (
+                    <button
+                        type="button"
+                        onClick={() => { setDateFrom(''); setDateTo(''); setDateSort('desc'); setShowArchived(false); setStatusFilter(''); }}
+                        className="px-2.5 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-xl font-semibold transition-colors cursor-pointer"
+                        title="Reset seluruh filter ke kondisi default (aktif)"
+                    >
+                        Reset Filter
                     </button>
                 )}
 
                 <button
-                    onClick={loadRequests}
+                    onClick={() => loadRequests()}
                     disabled={!activeService}
                     className={`p-2 rounded-xl transition-colors ${!activeService ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-green-600 hover:bg-slate-100 cursor-pointer'}`}
                     title={!activeService ? 'Pilih layanan terlebih dahulu' : 'Refresh data'}
@@ -1552,6 +1804,30 @@ export default function TrackingPage({ defaultSelectedId }) {
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
+
+            {/* Archive Notification Banner when showArchived is true */}
+            {activeService && showArchived && (
+                <div className="bg-amber-50 border border-amber-200/90 rounded-2xl px-4 py-3 flex items-center justify-between gap-3 text-xs text-amber-900 shadow-2xs animate-in fade-in duration-150">
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                        <div className="p-2 bg-amber-200/70 text-amber-800 rounded-xl shrink-0">
+                            <Archive className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="font-bold text-slate-900">Mode Archive Aktif</p>
+                            <p className="text-[11px] text-amber-800 truncate sm:whitespace-normal">
+                                Menampilkan permohonan yang telah di-archive (khusus status Selesai & Ditolak). Permohonan aktif disembunyikan.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowArchived(false)}
+                        className="px-3 py-1.5 bg-white hover:bg-amber-100/60 border border-amber-300 text-amber-900 rounded-xl font-bold text-xs transition-colors shadow-2xs cursor-pointer shrink-0"
+                    >
+                        Kembali ke Papan Utama
+                    </button>
+                </div>
+            )}
 
             {/* Kanban / Table View */}
             {!activeService ? (
@@ -1603,6 +1879,9 @@ export default function TrackingPage({ defaultSelectedId }) {
                                 <span className="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 font-black text-[11px]">
                                     {processedRequests.length} data
                                 </span>
+                                <span className="text-[11px] text-slate-400 hidden sm:inline">
+                                    • 10 baris per halaman
+                                </span>
                             </div>
                             <div className="flex items-center space-x-2 text-[11px] text-slate-500">
                                 <span>Urutan Tanggal:</span>
@@ -1619,13 +1898,13 @@ export default function TrackingPage({ defaultSelectedId }) {
 
                         {/* DESKTOP / TABLET TABLE VIEW (hidden on mobile, block on md:) */}
                         <div className="hidden md:block overflow-x-auto custom-scrollbar">
-                            <table className="w-full min-w-[880px] text-xs text-left">
+                            <table className="w-full min-w-[1020px] text-xs text-left">
                                 <thead className="bg-slate-50/90 sticky top-0 z-10 border-b border-slate-200 backdrop-blur-xs">
                                     <tr>
-                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-36">No. Tiket</th>
+                                        <th className="px-4 py-3.5 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-40 min-w-[140px] whitespace-nowrap">No. Tiket</th>
                                         <th
                                             onClick={() => setDateSort(prev => prev === 'desc' ? 'asc' : 'desc')}
-                                            className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] cursor-pointer hover:text-indigo-600 transition-colors select-none group w-36"
+                                            className="px-4 py-3.5 text-slate-500 font-bold uppercase tracking-wider text-[10px] cursor-pointer hover:text-indigo-600 transition-colors select-none group w-36 min-w-[130px] whitespace-nowrap"
                                             title="Klik untuk mengubah pengurutan tanggal (Terbaru / Terlama)"
                                         >
                                             <div className="flex items-center space-x-1">
@@ -1636,11 +1915,11 @@ export default function TrackingPage({ defaultSelectedId }) {
                                                 </span>
                                             </div>
                                         </th>
-                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-48">Layanan</th>
-                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] min-w-[200px]">Judul Permohonan</th>
-                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-44">Pemohon</th>
-                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-36">Status</th>
-                                        <th className="px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px] text-right w-32">Aksi</th>
+                                        <th className="px-4 py-3.5 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-48 min-w-[160px]">Layanan</th>
+                                        <th className="px-4 py-3.5 text-slate-500 font-bold uppercase tracking-wider text-[10px] min-w-[240px]">Judul Permohonan</th>
+                                        <th className="px-4 py-3.5 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-44 min-w-[150px] whitespace-nowrap">Pemohon</th>
+                                        <th className="px-4 py-3.5 text-slate-500 font-bold uppercase tracking-wider text-[10px] w-32 min-w-[110px] whitespace-nowrap">Status</th>
+                                        <th className="px-4 py-3.5 text-slate-500 font-bold uppercase tracking-wider text-[10px] text-right w-48 min-w-[170px] whitespace-nowrap">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -1655,7 +1934,7 @@ export default function TrackingPage({ defaultSelectedId }) {
                                             <p className="text-xs font-semibold text-slate-600">Tidak ada permohonan yang sesuai filter</p>
                                             <p className="text-[11px] text-slate-400 mt-0.5">Coba ubah kata kunci pencarian atau reset filter tanggal.</p>
                                         </td></tr>
-                                    ) : processedRequests.map(req => {
+                                    ) : paginatedRequests.map(req => {
                                         const reqForm = (typeof req.form_data === 'string')
                                             ? (() => { try { return JSON.parse(req.form_data); } catch { return {}; } })()
                                             : (req.form_data || {});
@@ -1668,45 +1947,90 @@ export default function TrackingPage({ defaultSelectedId }) {
                                                 onClick={() => openDetail(req.id)}
                                                 title="Klik untuk melihat detail lengkap permohonan"
                                             >
-                                                <td className="px-4 py-3">
-                                                    <span className="font-mono font-bold text-indigo-700 text-[11px] bg-indigo-50/70 border border-indigo-100/80 px-2 py-0.5 rounded-md group-hover:bg-indigo-100/70 transition-colors">
+                                                <td className="px-4 py-3.5 whitespace-nowrap align-middle">
+                                                    <span className="font-mono font-bold text-indigo-700 text-[11px] bg-indigo-50/80 border border-indigo-200/80 px-2.5 py-1 rounded-lg shadow-2xs whitespace-nowrap inline-block group-hover:bg-indigo-100/80 transition-colors">
                                                         {req.nomor_tiket}
                                                     </span>
+                                                    {req.is_archived && (
+                                                        <span className="inline-flex items-center space-x-1 text-[9px] font-bold text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-200 mt-1 block w-fit">
+                                                            <Archive className="w-2.5 h-2.5 inline" />
+                                                            <span>Archive</span>
+                                                        </span>
+                                                    )}
                                                 </td>
-                                                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                                                    <span className="font-medium">{new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}</span>
+                                                <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap align-middle">
+                                                    <span className="font-semibold text-slate-800 text-xs block">
+                                                        {new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    </span>
                                                     {targetDate && (
-                                                        <span className="block text-[10px] text-amber-700 font-semibold truncate mt-0.5">Target: {targetDate}</span>
+                                                        <span className="inline-flex items-center text-[10px] text-amber-800 font-semibold bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded-md mt-1">
+                                                            Target: {targetDate}
+                                                        </span>
                                                     )}
                                                 </td>
-                                                <td className="px-4 py-3">
-                                                    <span className="font-bold text-slate-800 text-xs block">{getFullServiceName(req)}</span>
+                                                <td className="px-4 py-3.5 align-middle">
+                                                    <span className="font-bold text-slate-800 text-xs block leading-tight">
+                                                        {getFullServiceName(req)}
+                                                    </span>
                                                     {reqForm.kategori_kegiatan && (
-                                                        <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200/80 px-1.5 py-0.2 rounded font-semibold inline-block mt-0.5">{reqForm.kategori_kegiatan}</span>
+                                                        <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded font-semibold inline-block mt-1">
+                                                            {reqForm.kategori_kegiatan}
+                                                        </span>
                                                     )}
                                                 </td>
-                                                <td className="px-4 py-3 max-w-xs">
-                                                    <span className="font-bold text-slate-900 line-clamp-1 text-xs group-hover:text-indigo-600 transition-colors">{req.judul_permohonan}</span>
+                                                <td className="px-4 py-3.5 align-middle max-w-sm">
+                                                    <span className="font-bold text-slate-900 line-clamp-1 text-xs group-hover:text-indigo-600 transition-colors leading-snug">
+                                                        {req.judul_permohonan}
+                                                    </span>
                                                     {reqForm.nama_kegiatan && reqForm.nama_kegiatan !== req.judul_permohonan && (
-                                                        <span className="text-[10px] text-slate-500 block truncate mt-0.5">Acara: {reqForm.nama_kegiatan}</span>
+                                                        <span className="text-[10px] text-slate-500 block truncate mt-0.5">
+                                                            Acara: {reqForm.nama_kegiatan}
+                                                        </span>
                                                     )}
                                                     {Array.isArray(reqForm.souvenir_items) && reqForm.souvenir_items.length > 0 && (
-                                                        <span className="text-[10px] text-amber-700 font-semibold block truncate mt-0.5">
+                                                        <span className="text-[10px] text-amber-800 font-semibold block truncate mt-0.5">
                                                             Suvenir: {reqForm.souvenir_items.map(s => `${s.nama_item} (${s.qty})`).join(', ')}
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap">
-                                                    <span className="font-bold text-slate-800 block text-xs">{reqForm.nama_pemohon || req.user?.name}</span>
-                                                    <span className="text-[10px] text-slate-400 block">{reqForm.unit_pemohon || req.user?.unit_kerja}</span>
+                                                <td className="px-4 py-3.5 whitespace-nowrap align-middle">
+                                                    <div className="flex items-center space-x-2">
+                                                        <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                                            {(reqForm.nama_pemohon || req.user?.name)?.charAt(0) || '?'}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <span className="font-bold text-slate-800 block text-xs leading-tight truncate">
+                                                                {reqForm.nama_pemohon || req.user?.name}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+                                                                {reqForm.unit_pemohon || req.user?.unit_kerja}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap">
-                                                    <span className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${statusBadgeStyles[req.status] || 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                                                <td className="px-4 py-3.5 whitespace-nowrap align-middle">
+                                                    <span className={`inline-block px-2.5 py-1 rounded-full border text-[10px] font-bold ${statusBadgeStyles[req.status] || 'bg-slate-50 border-slate-200 text-slate-700'}`}>
                                                         {req.status}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-3 text-right">
+                                                <td className="px-4 py-3.5 text-right whitespace-nowrap align-middle">
                                                     <div className="flex items-center justify-end space-x-1.5" onClick={(e) => e.stopPropagation()}>
+                                                        {['Selesai', 'Ditolak'].includes(req.status) && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => handleToggleArchive(req, e)}
+                                                                disabled={archivingId === req.id}
+                                                                className={`px-2.5 py-1 border rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center space-x-1 shadow-2xs whitespace-nowrap ${
+                                                                    req.is_archived
+                                                                        ? 'bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300'
+                                                                        : 'bg-white hover:bg-slate-100 text-slate-600 hover:text-indigo-600 border-slate-200'
+                                                                } ${archivingId === req.id ? 'opacity-40 cursor-wait' : ''}`}
+                                                                title={req.is_archived ? "Batal Archive (Kembalikan ke Papan Utama)" : "Archive permohonan ini"}
+                                                            >
+                                                                {req.is_archived ? <ArchiveRestore className="w-3 h-3 text-amber-700" /> : <Archive className="w-3 h-3 text-slate-500" />}
+                                                                <span>{req.is_archived ? 'Batal Archive' : 'Archive'}</span>
+                                                            </button>
+                                                        )}
                                                         {canUpdateStatus && (
                                                             <button
                                                                 type="button"
@@ -1748,7 +2072,7 @@ export default function TrackingPage({ defaultSelectedId }) {
                                     <p className="text-[11px] text-slate-400 mt-0.5">Coba ubah kata kunci pencarian atau reset filter tanggal.</p>
                                 </div>
                             ) : (
-                                processedRequests.map(req => {
+                                paginatedRequests.map(req => {
                                     const reqForm = (typeof req.form_data === 'string')
                                         ? (() => { try { return JSON.parse(req.form_data); } catch { return {}; } })()
                                         : (req.form_data || {});
@@ -1829,6 +2153,22 @@ export default function TrackingPage({ defaultSelectedId }) {
                                                     Ketuk untuk detail lengkap
                                                 </span>
                                                 <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                                    {['Selesai', 'Ditolak'].includes(req.status) && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => handleToggleArchive(req, e)}
+                                                            disabled={archivingId === req.id}
+                                                            className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer flex items-center space-x-1 shadow-2xs whitespace-nowrap ${
+                                                                req.is_archived
+                                                                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300'
+                                                                    : 'bg-white hover:bg-slate-100 text-slate-600 hover:text-indigo-600 border-slate-200'
+                                                            } ${archivingId === req.id ? 'opacity-40 cursor-wait' : ''}`}
+                                                            title={req.is_archived ? "Batal Archive (Kembalikan ke Papan Utama)" : "Archive permohonan ini"}
+                                                        >
+                                                            {req.is_archived ? <ArchiveRestore className="w-3 h-3 text-amber-700" /> : <Archive className="w-3 h-3 text-slate-500" />}
+                                                            <span>{req.is_archived ? 'Batal Archive' : 'Archive'}</span>
+                                                        </button>
+                                                    )}
                                                     {canUpdateStatus && (
                                                         <button
                                                             type="button"
@@ -1853,6 +2193,94 @@ export default function TrackingPage({ defaultSelectedId }) {
                                 })
                             )}
                         </div>
+
+                        {/* PAGINATION CONTROLS (10 BARIS PER HALAMAN) */}
+                        {processedRequests.length > 0 && (
+                            <div className="px-4 py-3 bg-white border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                                {/* Status jumlah & range data */}
+                                <div className="text-slate-500 text-[11px] sm:text-xs text-center sm:text-left">
+                                    Menampilkan <span className="font-bold text-slate-800">{startIndex}</span> - <span className="font-bold text-slate-800">{endIndex}</span> dari <span className="font-bold text-indigo-700">{totalItems}</span> permohonan
+                                    <span className="text-slate-400 ml-1.5 hidden sm:inline">(Halaman {safeCurrentPage} dari {totalPages})</span>
+                                </div>
+
+                                {/* Tombol Navigasi Halaman */}
+                                <div className="flex items-center space-x-1 sm:space-x-1.5 flex-wrap justify-center">
+                                    {/* Tombol Halaman Pertama */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentPage(1)}
+                                        disabled={safeCurrentPage === 1}
+                                        className="p-1.5 sm:p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-600 transition-all cursor-pointer shadow-2xs"
+                                        title="Halaman Pertama"
+                                    >
+                                        <ChevronsLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    </button>
+
+                                    {/* Tombol Sebelumnya */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={safeCurrentPage === 1}
+                                        className="px-2.5 py-1.5 sm:py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-600 transition-all cursor-pointer flex items-center space-x-1 text-xs font-bold shadow-2xs"
+                                        title="Halaman Sebelumnya"
+                                    >
+                                        <ChevronLeft className="w-3.5 h-3.5" />
+                                        <span className="hidden sm:inline">Sebelumnya</span>
+                                    </button>
+
+                                    {/* Nomor Halaman */}
+                                    <div className="flex items-center space-x-1">
+                                        {pageNumbers.map((p, idx) => {
+                                            if (p === '...') {
+                                                return (
+                                                    <span key={`ellipsis-${idx}`} className="px-1.5 py-1 text-slate-400 font-bold select-none text-xs">
+                                                        …
+                                                    </span>
+                                                );
+                                            }
+                                            const isActive = p === safeCurrentPage;
+                                            return (
+                                                <button
+                                                    key={p}
+                                                    type="button"
+                                                    onClick={() => setCurrentPage(p)}
+                                                    className={`min-w-[28px] sm:min-w-[32px] h-7 sm:h-8 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
+                                                        isActive
+                                                            ? 'bg-indigo-600 text-white shadow-xs scale-105'
+                                                            : 'border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 hover:border-indigo-300 hover:text-indigo-600 shadow-2xs'
+                                                    }`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Tombol Berikutnya */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={safeCurrentPage === totalPages}
+                                        className="px-2.5 py-1.5 sm:py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-600 transition-all cursor-pointer flex items-center space-x-1 text-xs font-bold shadow-2xs"
+                                        title="Halaman Berikutnya"
+                                    >
+                                        <span className="hidden sm:inline">Berikutnya</span>
+                                        <ChevronRight className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    {/* Tombol Halaman Terakhir */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        disabled={safeCurrentPage === totalPages}
+                                        className="p-1.5 sm:p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-600 transition-all cursor-pointer shadow-2xs"
+                                        title="Halaman Terakhir"
+                                    >
+                                        <ChevronsRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Footer Tips */}
                         <div className="px-4 py-2.5 border-t border-slate-100 text-[11px] text-slate-400 text-center font-medium bg-slate-50/50">
@@ -1924,6 +2352,8 @@ export default function TrackingPage({ defaultSelectedId }) {
                                                         isDraggable={canDrag}
                                                         onDragStart={handleDragStart}
                                                         onDragEnd={handleDragEnd}
+                                                        onToggleArchive={handleToggleArchive}
+                                                        isArchiving={archivingId === req.id}
                                                     />
                                                 ))
                                             )}
@@ -1958,6 +2388,12 @@ export default function TrackingPage({ defaultSelectedId }) {
                                     <span className={`px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${statusBadgeStyles[selectedDetail.status] || ''}`}>
                                         {selectedDetail.status}
                                     </span>
+                                    {selectedDetail.is_archived && (
+                                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold">
+                                            <Archive className="w-3 h-3 text-amber-700" />
+                                            <span>Archived</span>
+                                        </span>
+                                    )}
                                 </div>
                                 <h3 className="text-base font-extrabold text-slate-900">{selectedDetail.judul_permohonan}</h3>
                                 <p className="text-xs text-slate-500 mt-1">
@@ -1983,51 +2419,89 @@ export default function TrackingPage({ defaultSelectedId }) {
                                 }}
                             />
 
-                            {/* Attachments */}
-                            {selectedDetail.attachments?.length > 0 && (
-                                <div>
-                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lampiran Berkas</h4>
-                                    <div className="space-y-1.5">
-                                        {selectedDetail.attachments.map(att => (
-                                            <a
-                                                key={att.id}
-                                                href={`/storage/${att.file_path}`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 rounded-xl text-xs text-indigo-700 font-medium transition-colors"
-                                            >
-                                                <div className="flex items-center space-x-2 truncate">
-                                                    <Paperclip className="w-3.5 h-3.5 shrink-0" />
-                                                    <span className="truncate">{att.file_name}</span>
-                                                    <span className="text-[10px] text-slate-400">({(att.file_size / 1024).toFixed(0)} KB)</span>
-                                                </div>
-                                                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                                            </a>
-                                        ))}
+                            {/* Attachments (Hanya berkas awal pemohon, hasil revisi otomatis masuk ke timeline) */}
+                            {(() => {
+                                const initialAttachments = selectedDetail.attachments?.filter(att => !att.file_name?.startsWith('[Hasil Revisi')) || [];
+                                if (initialAttachments.length === 0) return null;
+                                return (
+                                    <div>
+                                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lampiran Berkas Pemohon</h4>
+                                        <div className="space-y-1.5">
+                                            {initialAttachments.map(att => (
+                                                <a
+                                                    key={att.id}
+                                                    href={att.download_url || `/api/v1/attachments/${att.id}/download`}
+                                                    download={att.clean_file_name || att.file_name}
+                                                    className="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 rounded-xl text-xs text-indigo-700 font-medium transition-colors group/item"
+                                                    title={`Unduh: ${att.clean_file_name || att.file_name}`}
+                                                >
+                                                    <div className="flex items-center space-x-2 truncate">
+                                                        <Paperclip className="w-3.5 h-3.5 shrink-0" />
+                                                        <span className="truncate font-semibold">{att.clean_file_name || att.file_name}</span>
+                                                        <span className="text-[10px] text-slate-400">({(att.file_size / 1024).toFixed(0)} KB)</span>
+                                                    </div>
+                                                    <div className="flex items-center space-x-1 text-slate-400 group-hover/item:text-indigo-600 shrink-0">
+                                                        <span className="text-[10px] font-bold">Unduh</span>
+                                                        <Download className="w-3.5 h-3.5" />
+                                                    </div>
+                                                </a>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
 
                             {/* Status Timeline */}
                             <div>
-                                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Riwayat Status Kronologis</h4>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Riwayat Status Kronologis</h4>
+                                    {(isAdmin || isPic) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => window.open(`/api/v1/export/excel?search=${selectedDetail.nomor_tiket}`, '_blank')}
+                                            className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg flex items-center space-x-1.5 transition-colors cursor-pointer"
+                                            title="Ekspor data dan riwayat status tiket ini ke Excel"
+                                        >
+                                            <FileSpreadsheet className="w-3.5 h-3.5" />
+                                            <span>Ekspor Tiket ke Excel</span>
+                                        </button>
+                                    )}
+                                </div>
                                 <StatusTimeline histories={selectedDetail.status_histories} />
                             </div>
 
-                            {/* Status Update Action */}
-                            {canUpdateStatus && (
-                                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                            {/* Status Update / Archive Action */}
+                            <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                                <div className="flex items-center space-x-2">
                                     <span className="text-xs text-slate-500">
-                                        {isPic ? 'Aksi PIC:' : 'Aksi Admin:'}
+                                        {isPic ? 'Aksi PIC:' : 'Aksi Admin / Pemohon:'}
                                     </span>
+                                    {['Selesai', 'Ditolak'].includes(selectedDetail.status) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleToggleArchive(selectedDetail)}
+                                            disabled={archivingId === selectedDetail.id}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs hover:scale-105 active:scale-95 ${
+                                                selectedDetail.is_archived
+                                                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300'
+                                                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                                            } ${archivingId === selectedDetail.id ? 'opacity-40 cursor-wait' : ''}`}
+                                            title={selectedDetail.is_archived ? "Batal Archive (Kembalikan ke Papan Utama)" : "Archive permohonan"}
+                                        >
+                                            {selectedDetail.is_archived ? <ArchiveRestore className="w-3.5 h-3.5 text-amber-700" /> : <Archive className="w-3.5 h-3.5 text-slate-500" />}
+                                            <span>{selectedDetail.is_archived ? 'Batal Archive' : 'Archive'}</span>
+                                        </button>
+                                    )}
+                                </div>
+                                {canUpdateStatus && (
                                     <button
                                         onClick={() => setUpdateModalOpen(true)}
-                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
                                     >
                                         Ubah Status
                                     </button>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2039,7 +2513,7 @@ export default function TrackingPage({ defaultSelectedId }) {
                     <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95">
                         <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
                             <h4 className="font-bold text-slate-900 text-sm">Perbarui Status Permohonan</h4>
-                            <button onClick={() => setUpdateModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                            <button onClick={() => { setUpdateModalOpen(false); setRevisionFiles([]); }} className="text-slate-400 hover:text-slate-600">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
@@ -2060,7 +2534,13 @@ export default function TrackingPage({ defaultSelectedId }) {
                                     options={getStatusOptions().map(s => ({
                                         value: s,
                                         label: s,
-                                        colorDot: s === 'Diajukan' ? 'bg-amber-500' : s === 'Diproses' ? 'bg-blue-500' : s === 'Direvisi' ? 'bg-orange-500' : s === 'Selesai' ? 'bg-emerald-500' : 'bg-rose-500'
+                                        colorDot: s === 'Diajukan' ? 'bg-amber-500' :
+                                                 (s === 'Diproses' || s === 'Terjadwalkan/Produksi Berita') ? 'bg-blue-500' :
+                                                 s === 'Direvisi' ? 'bg-orange-500' :
+                                                 s === 'Selesai' ? 'bg-emerald-500' :
+                                                 s.includes('Approval') ? 'bg-purple-500' :
+                                                 s.includes('Pemeriksaan') || s.includes('Produksi') ? 'bg-sky-500' :
+                                                 s.includes('Publikasi') || s.includes('Tayang') ? 'bg-blue-500' : 'bg-rose-500'
                                     }))}
                                     placeholder="Pilih Status"
                                     className="w-full bg-white"
@@ -2090,20 +2570,52 @@ export default function TrackingPage({ defaultSelectedId }) {
                                 />
                             </div>
 
-                            {/* Unggah Berkas/Foto Hasil Revisi (Tahap Pemeriksaan / Revisi) */}
+                            {/* Unggah Berkas/Foto Hasil Revisi (Tahap Pemeriksaan / Revisi) - Mendukung Multiple Attachments */}
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
-                                    Unggah Berkas / Foto Hasil Revisi (Opsional)
-                                </label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="text-xs font-bold text-slate-700">
+                                        Unggah Berkas / Foto Hasil Revisi (Opsional)
+                                    </label>
+                                    {revisionFiles.length > 0 && (
+                                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
+                                            {revisionFiles.length} Berkas Dipilih
+                                        </span>
+                                    )}
+                                </div>
                                 <input
                                     type="file"
+                                    multiple
                                     accept=".pdf,.jpg,.jpeg,.png,.docx"
-                                    onChange={(e) => setRevisionFile(e.target.files[0] || null)}
+                                    onChange={handleRevisionFilesChange}
                                     className="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
                                 />
-                                <p className="text-[10px] text-slate-400 mt-1">
-                                    Format: PDF, JPG, PNG, DOCX (Maks 10MB). Berkas hasil revisi / dokumen pemeriksaan akan otomatis tersimpan di lampiran permohonan.
-                                </p>
+                                {revisionFiles.length > 0 ? (
+                                    <div className="mt-2 space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                                        {revisionFiles.map((file, idx) => (
+                                            <div key={idx} className="p-2 bg-indigo-50/80 border border-indigo-200 rounded-xl flex items-center justify-between text-[11px] text-indigo-900">
+                                                <div className="flex items-center space-x-2 min-w-0 mr-2">
+                                                    <Paperclip className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                                    <span className="font-mono font-bold truncate">[Hasil Revisi] {file.name}</span>
+                                                    <span className="text-[10px] text-indigo-500 font-semibold shrink-0">
+                                                        ({(file.size / 1024).toFixed(0)} KB)
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeRevisionFile(idx)}
+                                                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0 cursor-pointer"
+                                                    title="Hapus berkas ini"
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-[10px] text-slate-400 mt-1">
+                                        Bisa memilih lebih dari satu berkas (Multiple Attachments). Format: PDF, JPG, PNG, DOCX (Maks 10MB per berkas). Berkas hasil revisi akan otomatis menempel di Riwayat Status Kronologis pada tahapan ini.
+                                    </p>
+                                )}
                             </div>
 
                             {/* Tip Alur Desain Grafis */}
@@ -2114,7 +2626,14 @@ export default function TrackingPage({ defaultSelectedId }) {
                             )}
 
                             <div className="flex justify-end space-x-2 pt-2">
-                                <button type="button" onClick={() => setUpdateModalOpen(false)} className="px-3 py-2 text-xs font-bold text-slate-600">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setUpdateModalOpen(false);
+                                        setRevisionFiles([]);
+                                    }}
+                                    className="px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                                >
                                     Batal
                                 </button>
                                 <button
@@ -2126,6 +2645,108 @@ export default function TrackingPage({ defaultSelectedId }) {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Archive / Batal Archive Confirmation Modal */}
+            {archiveConfirmModal.isOpen && archiveConfirmModal.req && (
+                <div className="fixed inset-0 z-70 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200 relative overflow-hidden">
+                        {/* Top decorative header */}
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center space-x-3">
+                                <div className={`p-3 rounded-2xl flex items-center justify-center shadow-xs ${
+                                    archiveConfirmModal.willArchive
+                                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                        : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                                }`}>
+                                    {archiveConfirmModal.willArchive ? (
+                                        <Archive className="w-6 h-6" />
+                                    ) : (
+                                        <ArchiveRestore className="w-6 h-6" />
+                                    )}
+                                </div>
+                                <div>
+                                    <h4 className="font-extrabold text-slate-900 text-base leading-tight">
+                                        {archiveConfirmModal.willArchive ? 'Archive Permohonan' : 'Batal Archive Permohonan'}
+                                    </h4>
+                                    <p className="text-xs text-slate-400 mt-0.5">Konfirmasi status archive</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setArchiveConfirmModal({ isOpen: false, req: null, willArchive: true })}
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Request Card Context */}
+                        <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl mb-4 space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="font-mono text-xs font-bold text-indigo-700 bg-white px-2.5 py-0.5 rounded-lg border border-indigo-100">
+                                    {archiveConfirmModal.req.nomor_tiket}
+                                </span>
+                                <span className={`inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold ${statusBadgeStyles[archiveConfirmModal.req.status] || 'bg-slate-100 border-slate-200 text-slate-700'}`}>
+                                    {archiveConfirmModal.req.status}
+                                </span>
+                            </div>
+                            <h5 className="font-bold text-slate-900 text-xs line-clamp-2 leading-snug">
+                                {archiveConfirmModal.req.judul_permohonan}
+                            </h5>
+                            <p className="text-[11px] text-slate-500 truncate">
+                                Layanan: <strong>{getFullServiceName(archiveConfirmModal.req)}</strong>
+                            </p>
+                        </div>
+
+                        {/* Explanatory Message */}
+                        <p className="text-xs text-slate-600 leading-relaxed mb-6">
+                            {archiveConfirmModal.willArchive
+                                ? 'Permohonan akan dipindahkan ke daftar Archive agar papan utama tetap rapi dan fokus pada permohonan yang aktif. Anda dapat melihat atau mengembalikannya kapan saja melalui filter Archive.'
+                                : 'Kembalikan permohonan ini dari daftar Archive ke papan utama?'
+                            }
+                        </p>
+
+                        {/* Modal Footer Actions */}
+                        <div className="flex items-center justify-end space-x-2.5 pt-2 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={() => setArchiveConfirmModal({ isOpen: false, req: null, willArchive: true })}
+                                disabled={archivingId === archiveConfirmModal.req.id}
+                                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmArchive}
+                                disabled={archivingId === archiveConfirmModal.req.id}
+                                className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-xs transition-all flex items-center space-x-2 cursor-pointer ${
+                                    archiveConfirmModal.willArchive
+                                        ? 'bg-amber-600 hover:bg-amber-700 active:scale-95'
+                                        : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'
+                                } ${archivingId === archiveConfirmModal.req.id ? 'opacity-50 cursor-wait' : ''}`}
+                            >
+                                {archivingId === archiveConfirmModal.req.id ? (
+                                    <>
+                                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                        <span>Memproses...</span>
+                                    </>
+                                ) : archiveConfirmModal.willArchive ? (
+                                    <>
+                                        <Archive className="w-3.5 h-3.5" />
+                                        <span>Ya, Archive</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <ArchiveRestore className="w-3.5 h-3.5" />
+                                        <span>Ya, Batal Archive</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

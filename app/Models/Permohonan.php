@@ -28,6 +28,8 @@ class Permohonan extends Model
         'catatan_revisi',
         'lead_time_minutes',
         'selesai_at',
+        'is_archived',
+        'archived_at',
     ];
 
     protected function casts(): array
@@ -37,6 +39,8 @@ class Permohonan extends Model
             'tanggal_dibutuhkan' => 'date',
             'selesai_at' => 'datetime',
             'lead_time_minutes' => 'integer',
+            'is_archived' => 'boolean',
+            'archived_at' => 'datetime',
         ];
     }
 

@@ -53,7 +53,7 @@ class AnalyticsController extends Controller
         // 1. KPI Cards
         $totalRequests = (clone $query)->count();
         $completedRequests = (clone $query)->where('status', 'Selesai')->count();
-        $activeRequests = (clone $query)->whereIn('status', ['Diajukan', 'Diproses', 'Direvisi', 'Menunggu Approval Sebagian'])->count();
+        $activeRequests = (clone $query)->whereNotIn('status', ['Selesai', 'Ditolak'])->count();
         $rejectedRequests = (clone $query)->where('status', 'Ditolak')->count();
 
         // Lead Time (Hanya tiket berstatus Selesai yang memiliki kalkulasi menit)
@@ -71,7 +71,21 @@ class AnalyticsController extends Controller
         $fastestLeadFormatted = $this->formatMinutes($minLeadTimeMinutes);
 
         // 2. Status Breakdown
-        $statuses = ['Diajukan', 'Diproses', 'Direvisi', 'Menunggu Approval Sebagian', 'Selesai', 'Ditolak'];
+        $serviceStatusMap = [
+            'D' => ['Diajukan', 'Diproses', 'Direvisi', 'Selesai', 'Ditolak'],
+            'P' => ['Diajukan', 'Produksi/Pemeriksaan Konten', 'Proses Tayang', 'Selesai', 'Ditolak'],
+            'S' => ['Diajukan', 'Menunggu Approval', 'Diproses', 'Selesai', 'Ditolak'],
+            'M' => ['Diajukan', 'Diproses', 'Selesai', 'Ditolak'],
+            'L' => ['Diajukan', 'Terjadwalkan/Produksi Berita', 'Selesai', 'Ditolak'],
+        ];
+
+        if ($activeService && isset($serviceStatusMap[$activeService->code])) {
+            $statuses = $serviceStatusMap[$activeService->code];
+        } else {
+            $dbStatuses = (clone $query)->distinct()->pluck('status')->filter()->toArray();
+            $statuses = array_values(array_unique(array_merge(['Diajukan', 'Diproses', 'Terjadwalkan/Produksi Berita', 'Selesai', 'Ditolak'], $dbStatuses)));
+        }
+
         $statusBreakdown = [];
         foreach ($statuses as $st) {
             $count = (clone $query)->where('status', $st)->count();
@@ -82,8 +96,13 @@ class AnalyticsController extends Controller
             ];
         }
 
-        // 3. Beban & Kinerja Seluruh Layanan (Perbandingan Antar-PIC)
-        $allServices = Service::all();
+        // 3. Beban & Kinerja Layanan (PIC HANYA melihat layanannya sendiri, SuperAdmin dapat melihat semua dan setiap layanan)
+        if ($user->isPic()) {
+            $allServices = Service::where('code', $user->pic_service_code)->get();
+        } else {
+            $allServices = Service::all();
+        }
+
         $globalQuery = Permohonan::query();
         if ($startDate) {
             $globalQuery->where('created_at', '>=', $startDate);
@@ -95,7 +114,7 @@ class AnalyticsController extends Controller
             $srvQuery = (clone $globalQuery)->where('service_id', $service->id);
             $srvCount = (clone $srvQuery)->count();
             $srvDone = (clone $srvQuery)->where('status', 'Selesai')->count();
-            $srvActive = (clone $srvQuery)->whereIn('status', ['Diajukan', 'Diproses', 'Direvisi', 'Menunggu Approval Sebagian'])->count();
+            $srvActive = (clone $srvQuery)->whereNotIn('status', ['Selesai', 'Ditolak'])->count();
             $srvRejected = (clone $srvQuery)->where('status', 'Ditolak')->count();
             $srvLeadMinutes = (clone $srvQuery)->where('status', 'Selesai')->whereNotNull('lead_time_minutes')->avg('lead_time_minutes');
 
@@ -110,6 +129,7 @@ class AnalyticsController extends Controller
                 'percentage' => $globalTotal > 0 ? round(($srvCount / $globalTotal) * 100, 1) : 0,
                 'completion_rate' => $srvCount > 0 ? round(($srvDone / $srvCount) * 100, 1) : 0,
                 'avg_lead_time' => $this->formatMinutes($srvLeadMinutes),
+                'avg_lead_time_minutes' => round($srvLeadMinutes ?? 0, 1),
             ];
         }
 

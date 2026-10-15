@@ -10,7 +10,7 @@ export default function DateTimePicker({
     setStartTime,
     endTime,
     setEndTime,
-    maxDurationMinutes = 180,
+    maxDurationMinutes = null,
     onValidationChange
 }) {
     const [bookedSlots, setBookedSlots] = useState([]);
@@ -64,7 +64,7 @@ export default function DateTimePicker({
                 const mins = diffMinutes % 60;
                 setDurationText(`${hours > 0 ? `${hours} jam ` : ''}${mins > 0 ? `${mins} menit` : ''}`);
 
-                if (diffMinutes > maxDurationMinutes) {
+                if (maxDurationMinutes && diffMinutes > maxDurationMinutes) {
                     isDurationValid = false;
                     const maxH = maxDurationMinutes / 60;
                     durationMsg = `Durasi pemesanan (${diffMinutes} menit) melebihi batas maksimal ${maxH} jam (${maxDurationMinutes} menit).`;
@@ -197,7 +197,9 @@ export default function DateTimePicker({
             {durationText && !durationError && (
                 <div className="flex items-center justify-between text-xs px-3 py-2 bg-emerald-100/70 text-emerald-800 rounded-lg">
                     <span>Durasi Terpilih: <strong>{durationText}</strong></span>
-                    <span className="text-[10px] text-emerald-700 font-semibold">(Maks. {maxDurationMinutes / 60} Jam)</span>
+                    {maxDurationMinutes && (
+                        <span className="text-[10px] text-emerald-700 font-semibold">(Maks. {maxDurationMinutes / 60} Jam)</span>
+                    )}
                 </div>
             )}
 

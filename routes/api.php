@@ -40,8 +40,12 @@ Route::prefix('v1')->group(function () {
     Route::post('/requests', [PermohonanController::class, 'store']);
     Route::get('/requests/{id}', [PermohonanController::class, 'show']);
     Route::match(['patch', 'post'], '/requests/{id}/status', [PermohonanController::class, 'updateStatus']);
+    Route::match(['patch', 'post'], '/requests/{id}/archive', [PermohonanController::class, 'toggleArchive']);
     Route::post('/requests/{id}/confirm-quota-pic', [PermohonanController::class, 'confirmQuotaPic']);
     Route::post('/requests/{id}/approve', [PermohonanController::class, 'approveSuvenir']);
+    Route::get('/attachments/{id}/download', [PermohonanController::class, 'downloadAttachment']);
+    Route::get('/status-histories/{id}/download', [PermohonanController::class, 'downloadStatusHistoryFile']);
+    Route::get('/status-history-attachments/{id}/download', [PermohonanController::class, 'downloadStatusHistoryAttachment']);
 
     // 5. Modul Notifikasi In-App
     Route::get('/notifications', [NotificationController::class, 'index']);
@@ -71,4 +75,5 @@ Route::prefix('v1')->group(function () {
     Route::put('/inventory/{id}', [\App\Http\Controllers\Api\InventoryController::class, 'update']);
     Route::post('/inventory/{id}/adjust', [\App\Http\Controllers\Api\InventoryController::class, 'adjust']);
     Route::get('/inventory-logs', [\App\Http\Controllers\Api\InventoryController::class, 'logs']);
+    Route::get('/inventory-logs/export/excel', [\App\Http\Controllers\Api\InventoryController::class, 'exportExcel']);
 });
