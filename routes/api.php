@@ -63,7 +63,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/export/csv', [ExportController::class, 'csv']);
     Route::get('/export/excel', [ExportController::class, 'excel']);
 
-    // 9. Kelola User (SuperAdmin only via middleware)
+    // 9. Pencarian User (Untuk fitur Mewakili Pemohon bagi TU, PIC, & SuperAdmin)
+    Route::get('/users/search', [UserController::class, 'search']);
+
+    // Kelola User (SuperAdmin only via middleware)
     Route::middleware(['superadmin'])->group(function () {
         Route::get('/users', [UserController::class, 'index']);
         Route::patch('/users/{id}/role', [UserController::class, 'updateRole']);

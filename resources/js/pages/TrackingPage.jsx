@@ -315,8 +315,13 @@ function KanbanCard({ req, column, onOpenDetail, isDraggable, onDragStart, onDra
                         {(formData.nama_pemohon || req.user?.name)?.charAt(0) || '?'}
                     </div>
                     <div className="min-w-0">
-                        <span className="text-[10px] text-slate-700 font-bold truncate block">{formData.nama_pemohon || req.user?.name}</span>
-                        <span className="text-[9px] text-slate-400 truncate block">{formData.unit_pemohon || req.user?.unit_kerja || 'Unit Kerja'}</span>
+                        <span className="text-[10px] text-slate-700 font-bold truncate block">{formData.nama_pemohon || req.requested_for?.name || req.user?.name}</span>
+                        <span className="text-[9px] text-slate-400 truncate block">{formData.unit_pemohon || req.requested_for?.unit_kerja || req.user?.unit_kerja || 'Unit Kerja'}</span>
+                        {(req.requested_for || formData.requested_for_name) && (
+                            <span className="text-[8px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.2 rounded truncate block mt-0.5">
+                                Mewakili (via {req.user?.name})
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div className="flex items-center space-x-1.5 shrink-0 ml-1">
@@ -583,6 +588,26 @@ function RequestFormDetail({ detail, user, onRefresh }) {
                             <span className="text-slate-400 font-medium">-</span>
                         )}
                     </div>
+                    {(detail.requested_for || detail.requested_for_id) && (
+                        <div className="mt-2.5 pt-2.5 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center space-x-1.5 text-slate-500">
+                                <span className="text-[11px]">Diajukan oleh:</span>
+                                <strong className="text-slate-800">{detail.user?.name}</strong>
+                                <span className="text-[10px] bg-slate-200/80 text-slate-700 px-1.5 py-0.2 rounded font-medium">
+                                    {detail.user?.role}
+                                </span>
+                            </div>
+                            <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 text-[11px] font-semibold">
+                                <span>Mewakili Pemohon:</span>
+                                <span className="font-bold underline">{detail.requested_for?.name || formData?.requested_for_name || 'User Terdaftar'}</span>
+                                {(detail.requested_for?.unit_kerja || formData?.requested_for_unit) && (
+                                    <span className="text-indigo-600 font-normal">
+                                        ({detail.requested_for?.unit_kerja || formData?.requested_for_unit})
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -2063,11 +2088,16 @@ export default function TrackingPage({ defaultSelectedId }) {
                                                         </div>
                                                         <div className="min-w-0">
                                                             <span className="font-bold text-slate-800 block text-xs leading-tight truncate">
-                                                                {reqForm.nama_pemohon || req.user?.name}
+                                                                {reqForm.nama_pemohon || req.requested_for?.name || req.user?.name}
                                                             </span>
                                                             <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
-                                                                {reqForm.unit_pemohon || req.user?.unit_kerja}
+                                                                {reqForm.unit_pemohon || req.requested_for?.unit_kerja || req.user?.unit_kerja}
                                                             </span>
+                                                            {(req.requested_for || reqForm.requested_for_name) && (
+                                                                <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                                    Mewakili (via {req.user?.name})
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </td>
@@ -2191,11 +2221,16 @@ export default function TrackingPage({ defaultSelectedId }) {
                                                 <div>
                                                     <span className="text-[10px] text-slate-400 font-semibold block uppercase">Pemohon</span>
                                                     <span className="font-bold text-slate-800 truncate block">
-                                                        {reqForm.nama_pemohon || req.user?.name}
+                                                        {reqForm.nama_pemohon || req.requested_for?.name || req.user?.name}
                                                     </span>
                                                     <span className="text-[10px] text-slate-400 truncate block">
-                                                        {reqForm.unit_pemohon || req.user?.unit_kerja}
+                                                        {reqForm.unit_pemohon || req.requested_for?.unit_kerja || req.user?.unit_kerja}
                                                     </span>
+                                                    {(req.requested_for || reqForm.requested_for_name) && (
+                                                        <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                            Mewakili (via {req.user?.name})
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <span className="text-[10px] text-slate-400 font-semibold block uppercase">Tanggal</span>

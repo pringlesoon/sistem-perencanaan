@@ -185,4 +185,40 @@ class UserController extends Controller
 
         return $this->updateRole($request, $userId);
     }
+
+    /**
+     * Search active users for "On Behalf Of" (Mewakili Pemohon) feature
+     * Accessible by: Tata Usaha, PIC, SuperAdmin
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $currentUser = Auth::user();
+        if (!$currentUser || !in_array($currentUser->role, ['SuperAdmin', 'Tata Usaha', 'PIC'])) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Akses ditolak. Fitur pencarian user hanya dapat diakses oleh Tata Usaha, PIC, atau SuperAdmin.',
+            ], 403);
+        }
+
+        $search = trim((string) $request->input('search', ''));
+        $query = User::query()->where('is_active', true);
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('username', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('unit_kerja', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->orderBy('name', 'asc')
+            ->limit(25)
+            ->get(['id', 'name', 'username', 'email', 'unit_kerja', 'role']);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $users,
+        ]);
+    }
 }

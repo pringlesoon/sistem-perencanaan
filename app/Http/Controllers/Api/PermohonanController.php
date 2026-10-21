@@ -46,15 +46,18 @@ class PermohonanController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Unauthenticated'], 401);
         }
 
-        $query = Permohonan::with(['user', 'service', 'multimediaDetail', 'suvenirDetail'])
+        $query = Permohonan::with(['user', 'requestedFor', 'service', 'multimediaDetail', 'suvenirDetail'])
             ->orderBy('created_at', 'desc');
 
         // FR-TRK-05: Isolasi Hak Akses
-        // User biasa & Tata Usaha hanya melihat permohonan miliknya sendiri.
+        // User biasa & Tata Usaha hanya melihat permohonan miliknya sendiri atau tiket yang diajukan mewakili dirinya
         // PIC hanya melihat permohonan dari layanan mereka.
         // SuperAdmin melihat seluruh permohonan.
         if (in_array($user->role, ['User', 'Tata Usaha'])) {
-            $query->where('user_id', $user->id);
+            $query->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                  ->orWhere('requested_for_id', $user->id);
+            });
         } elseif ($user->role === 'PIC') {
             if ($user->pic_service_code) {
                 $picCatMap = ['D' => 'Desain', 'P' => 'Publikasi', 'S' => 'Suvenir', 'M' => 'Multimedia', 'L' => 'Liputan'];
@@ -96,7 +99,7 @@ class PermohonanController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        // Search: Nomor Tiket, Judul, atau Nama Pemohon
+        // Search: Nomor Tiket, Judul, atau Nama Pemohon / Yang Diwakili
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -104,6 +107,10 @@ class PermohonanController extends Controller
                   ->orWhere('judul_permohonan', 'like', "%{$search}%")
                   ->orWhereHas('user', function ($uq) use ($search) {
                       $uq->where('name', 'like', "%{$search}%")
+                         ->orWhere('unit_kerja', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('requestedFor', function ($rq) use ($search) {
+                      $rq->where('name', 'like', "%{$search}%")
                          ->orWhere('unit_kerja', 'like', "%{$search}%");
                   });
             });
@@ -142,8 +149,15 @@ class PermohonanController extends Controller
             'judul_permohonan' => 'required|string|max:255',
             'deskripsi_kebutuhan' => 'required|string',
             'tanggal_dibutuhkan' => 'nullable|date',
+            'requested_for_id' => 'nullable|integer|exists:users,id',
             'attachments.*' => 'nullable|file|max:10240|mimes:pdf,jpg,jpeg,png,docx',
         ]);
+
+        // Fitur On Behalf Of (Mewakili Pemohon): hanya untuk Tata Usaha, PIC, dan SuperAdmin
+        $canRequestOnBehalf = in_array($user->role, ['Tata Usaha', 'PIC', 'SuperAdmin']);
+        $requestedForId = ($canRequestOnBehalf && $request->filled('requested_for_id'))
+            ? (int) $request->requested_for_id
+            : null;
 
         // Aturan Bisnis RBAC: Layanan Alat Promosi (S) & Multimedia (M) eksklusif
         // Pengguna dengan role default "User" tidak diizinkan mengajukan langsung
@@ -251,7 +265,7 @@ class PermohonanController extends Controller
 
         // Transaksi Database ACID untuk menjamin integritas data (NFR-REL-02, FR-MM-05)
         try {
-            $createdPermohonan = DB::transaction(function () use ($request, $user, $service, $formData) {
+            $createdPermohonan = DB::transaction(function () use ($request, $user, $service, $formData, $requestedForId) {
                 // Skenario Multimedia: Conflict Checking dengan Lock untuk cegah race condition (FR-MM-05)
                 $tglPelaksanaan = $request->tanggal_pelaksanaan ?? ($formData['tanggal_produksi'] ?? $formData['tanggal_kegiatan'] ?? null);
                 $jamMulai = $request->jam_mulai ?? ($formData['jam_mulai'] ?? null);
@@ -303,10 +317,13 @@ class PermohonanController extends Controller
                 $countToday = Permohonan::whereDate('created_at', Carbon::today())->count() + 1;
                 $nomorTiket = sprintf("REQ-%s-%04d", $dateCode, $countToday);
 
+                $requestedForUser = $requestedForId ? User::find($requestedForId) : null;
+
                 // Buat Permohonan Utama
                 $permohonan = Permohonan::create([
                     'nomor_tiket' => $nomorTiket,
                     'user_id' => $user->id,
+                    'requested_for_id' => $requestedForId,
                     'service_id' => $service->id,
                     'kategori' => $service->name,
                     'judul_permohonan' => $request->judul_permohonan,
@@ -359,7 +376,9 @@ class PermohonanController extends Controller
                 }
 
                 // Simpan Entri Status History Awal (Append-Only)
-                $historyNote = 'Permohonan diajukan oleh pemohon melalui sistem SAPT.';
+                $historyNote = $requestedForUser
+                    ? "Permohonan diajukan oleh {$user->name} ({$user->role}) mewakili {$requestedForUser->name} ({$requestedForUser->unit_kerja})."
+                    : 'Permohonan diajukan oleh pemohon melalui sistem SAPT.';
 
                 StatusHistory::create([
                     'permohonan_id' => $permohonan->id,
@@ -385,6 +404,17 @@ class PermohonanController extends Controller
                     }
                 }
 
+                // Notifikasi in-app untuk pemohon asli jika permohonan diajukan atas namanya (Mewakili Pemohon)
+                if ($requestedForId && $requestedForId !== $user->id) {
+                    Notification::create([
+                        'user_id' => $requestedForId,
+                        'permohonan_id' => $permohonan->id,
+                        'title' => "Permohonan Baru Diajukan Mewakili Anda: {$nomorTiket}",
+                        'message' => "Permohonan \"{$service->name}\" telah diajukan atas nama Anda oleh {$user->name} ({$user->role}). Tiket dapat dipantau di halaman Tracking Anda.",
+                        'type' => 'info',
+                    ]);
+                }
+
                 // Notifikasi in-app untuk SuperAdmin bahwa ada permohonan baru
                 $admins = User::where('role', 'SuperAdmin')->get();
                 foreach ($admins as $admin) {
@@ -392,7 +422,7 @@ class PermohonanController extends Controller
                         'user_id' => $admin->id,
                         'permohonan_id' => $permohonan->id,
                         'title' => "Permohonan Baru: {$nomorTiket} [{$service->code}]",
-                        'message' => "Permohonan {$service->name} baru diajukan oleh {$user->name} ({$user->unit_kerja}).",
+                        'message' => "Permohonan {$service->name} baru diajukan oleh {$user->name} ({$user->unit_kerja})" . ($requestedForUser ? " mewakili {$requestedForUser->name}" : '') . ".",
                         'type' => 'info',
                     ]);
                 }
@@ -403,7 +433,7 @@ class PermohonanController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Permohonan berhasil diajukan dengan nomor tiket: ' . $createdPermohonan->nomor_tiket,
-                'data' => $createdPermohonan->load(['service', 'multimediaDetail', 'suvenirDetail', 'statusHistories', 'attachments']),
+                'data' => $createdPermohonan->load(['user', 'requestedFor', 'service', 'multimediaDetail', 'suvenirDetail', 'statusHistories', 'attachments']),
             ], 201);
         } catch (Exception $e) {
             if ($e->getMessage() === 'JADWAL_BENTROK') {
@@ -432,6 +462,7 @@ class PermohonanController extends Controller
 
         $permohonan = Permohonan::with([
             'user',
+            'requestedFor',
             'service',
             'multimediaDetail',
             'suvenirDetail.approver',
@@ -439,8 +470,8 @@ class PermohonanController extends Controller
             'attachments',
         ])->findOrFail($id);
 
-        // Validasi Otorisasi: User biasa hanya boleh melihat miliknya
-        if ($user->isUser() && $permohonan->user_id !== $user->id) {
+        // Validasi Otorisasi: User biasa & Tata Usaha hanya boleh melihat miliknya atau jika dia yang diwakili
+        if (in_array($user->role, ['User', 'Tata Usaha']) && $permohonan->user_id !== $user->id && $permohonan->requested_for_id !== $user->id) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Akses ditolak. Anda tidak memiliki izin melihat permohonan ini.',
@@ -667,6 +698,17 @@ class PermohonanController extends Controller
                 'message' => "Status permohonan Anda kini berubah menjadi \"{$newStatus}\". " . ($request->catatan ? "Catatan: {$request->catatan}" : ""),
                 'type' => $type,
             ]);
+
+            // Kirim notifikasi ke pemohon asli jika permohonan diajukan mewakili dirinya
+            if ($permohonan->requested_for_id && $permohonan->requested_for_id !== $permohonan->user_id) {
+                Notification::create([
+                    'user_id' => $permohonan->requested_for_id,
+                    'permohonan_id' => $permohonan->id,
+                    'title' => "Pembaruan Status Permohonan: {$permohonan->nomor_tiket}",
+                    'message' => "Status permohonan \"{$permohonan->judul_permohonan}\" kini berubah menjadi \"{$newStatus}\". " . ($request->catatan ? "Catatan: {$request->catatan}" : ""),
+                    'type' => $type,
+                ]);
+            }
         });
 
         return response()->json([
@@ -800,7 +842,7 @@ class PermohonanController extends Controller
             if ($permohonan->service?->code === $user->pic_service_code || ($catName && str_contains($permohonan->kategori ?? '', $catName))) {
                 $isAuthorized = true;
             }
-        } elseif (in_array($user->role, ['User', 'Tata Usaha']) && $permohonan->user_id === $user->id) {
+        } elseif (in_array($user->role, ['User', 'Tata Usaha']) && ($permohonan->user_id === $user->id || $permohonan->requested_for_id === $user->id)) {
             $isAuthorized = true;
         }
 

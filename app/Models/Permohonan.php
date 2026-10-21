@@ -18,6 +18,7 @@ class Permohonan extends Model
     protected $fillable = [
         'nomor_tiket',
         'user_id',
+        'requested_for_id',
         'service_id',
         'kategori',
         'judul_permohonan',
@@ -47,6 +48,11 @@ class Permohonan extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function requestedFor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_for_id');
     }
 
     public function service(): BelongsTo
