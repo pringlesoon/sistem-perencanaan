@@ -72,6 +72,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('/users/{id}/role', [UserController::class, 'updateRole']);
         Route::patch('/users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
         Route::patch('/users/{id}/assign-pic', [UserController::class, 'assignPic']);
+        Route::delete('/users/{id}', [UserController::class, 'destroy']);
     });
 
     // 10. Modul Inventaris & Stok (Suvenir & Multimedia)

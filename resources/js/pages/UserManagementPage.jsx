@@ -6,7 +6,7 @@ import {
     Users, Shield, UserCheck, UserX,
     ChevronDown, Check, ShieldAlert, Loader2, RefreshCw,
     Briefcase, AlertCircle, X, Search, Filter,
-    ChevronLeft, ChevronRight, Power, Info, CheckCircle2, Lock
+    ChevronLeft, ChevronRight, Power, Info, CheckCircle2, Lock, Trash2
 } from 'lucide-react';
 import CustomSelect from '../components/CustomSelect';
 
@@ -308,6 +308,53 @@ export default function UserManagementPage() {
         }
     };
 
+    const handleDeleteUser = async (user) => {
+        if (currentUser && user.id === currentUser.id) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Operasi Dibatalkan',
+                text: 'Anda tidak dapat menghapus akun Anda sendiri.',
+            });
+            return;
+        }
+
+        const result = await Swal.fire({
+            icon: 'warning',
+            title: 'Hapus Pengguna?',
+            text: `Apakah Anda yakin ingin menghapus akun "${user.name}" (${user.username}) dari sistem?`,
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Hapus',
+            cancelButtonText: 'Batal',
+        });
+
+        if (!result.isConfirmed) return;
+
+        setActionLoadingId(user.id);
+        try {
+            const res = await api.delete(`/users/${user.id}`);
+            if (res.data?.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil Dihapus',
+                    text: res.data.message,
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
+                loadUsers(pagination.current_page);
+            }
+        } catch (err) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Menghapus Pengguna',
+                text: err.response?.data?.message || 'Gagal menghapus pengguna.',
+            });
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
     if (!currentUser?.isSuperAdmin?.() && currentUser?.role !== 'SuperAdmin') {
         return (
             <div className="max-w-md mx-auto py-16 text-center animate-in fade-in duration-300">
@@ -571,6 +618,20 @@ export default function UserManagementPage() {
                                                             <Power className="w-3.5 h-3.5" />
                                                         )}
                                                         <span>{u.is_active ? 'Nonaktifkan' : 'Aktifkan'}</span>
+                                                    </button>
+
+                                                    {/* Tombol Hapus User */}
+                                                    <button
+                                                        onClick={() => handleDeleteUser(u)}
+                                                        disabled={isSelf || isLoadingRow}
+                                                        className={`p-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center transition-colors cursor-pointer ${
+                                                            isSelf
+                                                                ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                                                                : 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200'
+                                                        }`}
+                                                        title={isSelf ? 'Tidak dapat menghapus akun sendiri' : 'Hapus Pengguna'}
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
                                                     </button>
                                                 </div>
                                             </td>

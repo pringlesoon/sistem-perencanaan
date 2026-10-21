@@ -19,7 +19,17 @@ class LdapAuthService
     {
         $username = trim($username);
 
-        // 1. Cek Mode Mock / Fallback Lokal
+        // 1. Cek Akun Superadmin Darurat Lokal (Break-Glass Local Account)
+        // Memungkinkan login darurat bagi SuperAdmin lokal tanpa bergantung ke server LDAP
+        $localSuperAdmin = User::where('username', $username)->first();
+        if ($localSuperAdmin && $localSuperAdmin->role === 'SuperAdmin' && !empty($localSuperAdmin->password) && Hash::check($password, $localSuperAdmin->password)) {
+            if (!$localSuperAdmin->is_active) {
+                throw new \DomainException('ACCOUNT_DISABLED');
+            }
+            return $localSuperAdmin;
+        }
+
+        // 2. Cek Mode Mock / Fallback Lokal
         if (config('services.ldap.mock', env('LDAP_MOCK', true))) {
             return $this->authenticateMock($username, $password);
         }

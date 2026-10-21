@@ -12,150 +12,19 @@ class MasterDataSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Seed Akun Persona: Andi (User pemohon)
-        $andi = User::firstOrCreate(
-            ['username' => 'andi'],
+        // 1. Akun Superadmin Darurat Lokal (Break-Glass Account)
+        // Digunakan untuk akses darurat saat server LDAP kampus mengalami kendala teknis
+        $superadmin = User::updateOrCreate(
+            ['username' => 'superadmin_sys'],
             [
-                'name' => 'Andi Saputra',
-                'email' => 'andi@kampus.ac.id',
-                'unit_kerja' => 'Biro Akademik & Kemahasiswaan',
-                'role' => 'User',
-                'password' => Hash::make('password'),
-            ]
-        );
-
-        // 2. Super Admin
-        $superadmin = User::firstOrCreate(
-            ['username' => 'superadmin'],
-            [
-                'name' => 'Rini Andriani',
-                'email' => 'rini.admin@kampus.ac.id',
-                'unit_kerja' => 'Divisi Marketing YARSI',
+                'name' => 'Super Admin Sistem (Darurat)',
+                'email' => 'admin.sys@yarsi.ac.id',
+                'unit_kerja' => 'Divisi Marketing & IT YARSI',
                 'role' => 'SuperAdmin',
                 'is_active' => true,
-                'password' => Hash::make('password'),
+                'password' => Hash::make('Adm!Y4r$i_2026#Sys'),
             ]
         );
-
-        // 2b. Tata Usaha
-        $sari = User::firstOrCreate(
-            ['username' => 'sari'],
-            [
-                'name' => 'Sari Indah',
-                'email' => 'sari.tu@kampus.ac.id',
-                'unit_kerja' => 'Tata Usaha Fakultas Kedokteran',
-                'role' => 'Tata Usaha',
-                'is_active' => true,
-                'password' => Hash::make('password'),
-            ]
-        );
-
-        // 3. Seed 5 PIC Users (role default = User, akan diubah oleh SuperAdmin)
-        $pic_users = [
-            [
-                'username' => 'ahmad',
-                'name' => 'Ahmad Fauzi',
-                'email' => 'ahmad.pic@kampus.ac.id',
-                'unit_kerja' => 'Divisi Marketing YARSI',
-                'role' => 'PIC',
-                'pic_service_code' => 'D',
-                'password' => Hash::make('password'),
-            ],
-            [
-                'username' => 'nurhaliza',
-                'name' => 'Nurhaliza Putri',
-                'email' => 'nurhaliza.pic@kampus.ac.id',
-                'unit_kerja' => 'Divisi Marketing YARSI',
-                'role' => 'PIC',
-                'pic_service_code' => 'P',
-                'password' => Hash::make('password'),
-            ],
-            [
-                'username' => 'bagas',
-                'name' => 'Bagas Wicaksono',
-                'email' => 'bagas.pic@kampus.ac.id',
-                'unit_kerja' => 'Divisi Marketing YARSI',
-                'role' => 'PIC',
-                'pic_service_code' => 'S',
-                'password' => Hash::make('password'),
-            ],
-            [
-                'username' => 'dewi',
-                'name' => 'Dewi Rahayu',
-                'email' => 'dewi.pic@kampus.ac.id',
-                'unit_kerja' => 'Divisi Marketing YARSI',
-                'role' => 'PIC',
-                'pic_service_code' => 'M',
-                'password' => Hash::make('password'),
-            ],
-            [
-                'username' => 'rizky',
-                'name' => 'Rizky Pratama',
-                'email' => 'rizky.pic@kampus.ac.id',
-                'unit_kerja' => 'Divisi Marketing YARSI',
-                'role' => 'PIC',
-                'pic_service_code' => 'L',
-                'password' => Hash::make('password'),
-            ],
-        ];
-
-        foreach ($pic_users as $picData) {
-            User::firstOrCreate(
-                ['username' => $picData['username']],
-                $picData
-            );
-        }
-
-        // 4. Seed 5 User biasa tambahan (bisa diubah menjadi PIC oleh SuperAdmin)
-        $additional_users = [
-            [
-                'username' => 'fajar',
-                'name' => 'Fajar Setiawan',
-                'email' => 'fajar@kampus.ac.id',
-                'unit_kerja' => 'Fakultas Kedokteran',
-                'role' => 'User',
-                'password' => Hash::make('password'),
-            ],
-            [
-                'username' => 'maya',
-                'name' => 'Maya Anggraini',
-                'email' => 'maya@kampus.ac.id',
-                'unit_kerja' => 'Fakultas Teknologi Informasi',
-                'role' => 'User',
-                'password' => Hash::make('password'),
-            ],
-            [
-                'username' => 'hendra',
-                'name' => 'Hendra Kurniawan',
-                'email' => 'hendra@kampus.ac.id',
-                'unit_kerja' => 'Fakultas Hukum',
-                'role' => 'User',
-                'password' => Hash::make('password'),
-            ],
-            [
-                'username' => 'sinta',
-                'name' => 'Sinta Permata',
-                'email' => 'sinta@kampus.ac.id',
-                'unit_kerja' => 'Fakultas Ekonomi & Bisnis',
-                'role' => 'User',
-                'password' => Hash::make('password'),
-            ],
-            [
-                'username' => 'yusuf',
-                'name' => 'Yusuf Ramadhan',
-                'email' => 'yusuf@kampus.ac.id',
-                'unit_kerja' => 'Biro Keuangan & SDM',
-                'role' => 'User',
-                'password' => Hash::make('password'),
-            ],
-        ];
-
-        foreach ($additional_users as $userData) {
-            User::firstOrCreate(
-                ['username' => $userData['username']],
-                $userData
-            );
-        }
 
         // 5. Seed 5 Layanan Utama dengan Syarat & Ketentuan Resmi
         $services = [

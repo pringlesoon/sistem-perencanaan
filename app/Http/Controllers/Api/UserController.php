@@ -221,4 +221,34 @@ class UserController extends Controller
             'data'   => $users,
         ]);
     }
+
+    /**
+     * Delete user (SuperAdmin only)
+     */
+    public function destroy($userId): JsonResponse
+    {
+        $currentUser = Auth::user();
+        $user = User::findOrFail($userId);
+
+        if ($currentUser && $user->id === $currentUser->id) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Anda tidak dapat menghapus akun Anda sendiri.',
+            ], 422);
+        }
+
+        if ($user->permohonans()->count() > 0) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Pengguna tidak dapat dihapus karena memiliki riwayat permohonan. Anda dapat menonaktifkan status aksesnya.',
+            ], 422);
+        }
+
+        $user->delete();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => "Pengguna {$user->name} ({$user->username}) berhasil dihapus.",
+        ]);
+    }
 }

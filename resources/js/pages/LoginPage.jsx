@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, User, Sparkles, ArrowRight, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Lock, User, ArrowRight, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export default function LoginPage({ onBackToGuest, onSuccess }) {
     const { login } = useAuth();
@@ -54,9 +54,6 @@ export default function LoginPage({ onBackToGuest, onSuccess }) {
                     <p className="text-xs font-semibold uppercase tracking-wider text-green-600 mt-0.5">
                         Universitas YARSI
                     </p>
-                    <p className="text-xs text-slate-500 mt-2">
-                        Silakan masuk dengan akun direktori internal.
-                    </p>
                 </div>
 
 
@@ -80,7 +77,6 @@ export default function LoginPage({ onBackToGuest, onSuccess }) {
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                placeholder="mis. andi, superadmin, ahmad"
                                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                 required
                             />
@@ -113,43 +109,6 @@ export default function LoginPage({ onBackToGuest, onSuccess }) {
                         <ArrowRight className="w-4 h-4" />
                     </button>
                 </form>
-
-                {/* Info: Demo accounts */}
-                <div className="mt-8 pt-6 border-t border-slate-100">
-                    <div className="flex items-center justify-center space-x-1.5 text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-3">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Akun Demo (Password: password)</span>
-                    </div>
-
-                    <div className="space-y-1.5 text-[10px] text-slate-500">
-                        <div className="grid grid-cols-2 gap-1.5">
-                            <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                <p className="font-bold text-slate-700">andi</p>
-                                <p>Pemohon (User)</p>
-                            </div>
-                            <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
-                                <p className="font-bold text-blue-700">sari</p>
-                                <p>Tata Usaha (TU)</p>
-                            </div>
-                            <div className="bg-violet-50 p-2 rounded-lg border border-violet-100">
-                                <p className="font-bold text-violet-700">superadmin</p>
-                                <p>Super Admin</p>
-                            </div>
-                            <div className="bg-amber-50 p-2 rounded-lg border border-amber-100">
-                                <p className="font-bold text-amber-700">bagas</p>
-                                <p>PIC Alat Promosi</p>
-                            </div>
-                            <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-100">
-                                <p className="font-bold text-emerald-700">dewi</p>
-                                <p>PIC Multimedia</p>
-                            </div>
-                            <div className="bg-indigo-50 p-2 rounded-lg border border-indigo-100">
-                                <p className="font-bold text-indigo-700">ahmad, rizky, dll</p>
-                                <p>PIC Layanan Lain</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <div className="mt-6 flex items-center justify-center space-x-1.5 text-[10px] text-slate-400">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
