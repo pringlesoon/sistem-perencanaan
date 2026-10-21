@@ -1,59 +1,144 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sistem Layanan Marketing (SLM) & Permohonan Terpusat (SAPT) - Universitas YARSI
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplikasi web modern berbasis **Laravel 11 + Inertia/React (Vite)** untuk pengelolaan layanan terpadu Humas & Marketing Universitas YARSI:
+1. **Layanan Desain Grafis (D)**
+2. **Layanan Publikasi Website & Social Media (P)**
+3. **Layanan Permohonan Alat Promosi & Suvenir (S)**
+4. **Layanan Multimedia, Dokumentasi & Live Streaming (M)**
+5. **Layanan Peliputan Berita (L)**
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🚀 Fitur Unggulan Sistem
+- **Autentikasi LDAP / SSO Kampus**: Terhubung langsung dengan direktori akun civitas akademika (Dosen, Tendik, Mahasiswa).
+- **Fitur "On Behalf Of" (Mewakili Pemohon)**: Khusus role **Tata Usaha (TU)** dan **PIC** untuk mengajukan layanan atas nama pengguna lain. Tiket otomatis terhubung ke akun pemohon asli.
+- **Role-Based Access Control (RBAC)**:
+  - `SuperAdmin`: Pengelolaan akun pengguna, status aktif/nonaktif, konfigurasi parameter layanan, analitik global.
+  - `Tata Usaha`: Mengajukan layanan eksklusif (Multimedia & Alat Promosi) mewakili civitas unit kerja.
+  - `PIC Layanan`: Verifikasi ketersediaan kuota, pengelolaan timeline produksi, conflict checking jadwal multimedia, approval suvenir.
+  - `User`: Pengajuan layanan mandiri dan pelacakan status tiket secara realtime.
+- **Logistik & Inventaris Realtime**: Penyesuaian stok otomatis, approval workflow suvenir, dan booking slot multimedia.
+- **Pelacakan Tiket Terpadu**: Datatable dengan filter layanan, export Excel/CSV bertingkat, dan notifikasi in-app.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 📦 Pilihan Setup Database
 
-## Learning Laravel
+Sistem telah dilengkapi database **bersih (clean state)** yang hanya memuat data master resmi (layanan, SOP, business config, akun default, dan inventaris awal tanpa data transaksi uji coba).
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### Opsi A: Menggunakan SQLite (Rekomendasi Cepat / Siap Pakai)
+File database SQLite bersih telah disertakan langsung di repository:
+```
+database/database.sqlite
+```
+Pada file `.env`:
+```env
+DB_CONNECTION=sqlite
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Opsi B: Menggunakan MySQL / MariaDB (Server Hosting / cPanel)
+Jika server produksi menggunakan MySQL:
+1. Buat database baru di cPanel / phpMyAdmin (misal: `sistem_perencanaan_db`).
+2. Import file dump SQL bersih yang telah disediakan:
+   ```
+   database/sistem_perencanaan_clean.sql
+   ```
+   Atau jalankan migrasi segar melalui terminal server:
+   ```bash
+   php artisan migrate:fresh --seed
+   ```
+3. Sesuaikan file `.env`:
+   ```env
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=sistem_perencanaan_db
+   DB_USERNAME=nama_user_db
+   DB_PASSWORD=password_db
+   ```
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## 🔐 Konfigurasi LDAP Kampus (Universitas YARSI)
 
-### Premium Partners
+Aplikasi mendukung mode pengujian lokal (**Mock**) dan koneksi nyata ke **Active Directory / OpenLDAP Kampus**:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Mode Produksi (Koneksi LDAP Real):
+Ubah parameter berikut pada file `.env` di server hosting:
+```env
+LDAP_MOCK=false
+LDAP_LOGGING=true
+LDAP_CONNECTION=default
+LDAP_HOST=ldap.yarsi.ac.id
+LDAP_PORT=389
+LDAP_USERNAME="cn=read-user,dc=yarsi,dc=ac,dc=id"
+LDAP_PASSWORD="password_service_account"
+LDAP_BASE_DN="dc=yarsi,dc=ac,dc=id"
+LDAP_TIMEOUT=5
+LDAP_TLS=false
+LDAP_STARTTLS=false
+```
 
-## Contributing
+> **Catatan Teknis LDAP**:
+> - Pencarian pengguna mendukung pencarian multi-atribut (`uid`, `sAMAccountName`, `cn`) sehingga civitas dapat login menggunakan NIP, NPM, maupun username email.
+> - Saat login pertama kali berhasil via LDAP, sistem akan otomatis melakukan **auto-provisioning** akun ke database lokal dengan role default `User`.
+> - SuperAdmin dapat mengubah role pengguna menjadi `Tata Usaha` atau `PIC Layanan` melalui menu **Kelola User**.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## 👥 Akun Default & Persona untuk Uji Coba
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Semua akun default menggunakan password: `password`
 
-## Security Vulnerabilities
+| Role | Username | Nama | Keterangan |
+| :--- | :--- | :--- | :--- |
+| **SuperAdmin** | `superadmin` | Rini Andriani | Akses penuh, kelola user, konfigurasi sistem |
+| **Tata Usaha** | `sari` | Sari Indah | Akses fitur On Behalf Of (Mewakili Pemohon) |
+| **PIC Desain (D)** | `ahmad` | Ahmad Fauzi | PIC Layanan Desain Grafis |
+| **PIC Publikasi (P)** | `nurhaliza` | Nurhaliza Putri | PIC Layanan Publikasi Sosmed/Web |
+| **PIC Suvenir (S)** | `bagas` | Bagas Wicaksono | PIC Layanan Permohonan Alat Promosi |
+| **PIC Multimedia (M)** | `dewi` | Dewi Rahayu | PIC Layanan Multimedia & Studio |
+| **PIC Liputan (L)** | `rizky` | Rizky Pratama | PIC Layanan Peliputan Berita |
+| **User Biasa** | `andi` | Andi Saputra | Pemohon umum |
+| **User Biasa** | `fajar` | Fajar Setiawan | Pemohon FK |
+| **User Biasa** | `maya` | Maya Anggraini | Pemohon FTI |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 🛠️ Langkah Instalasi di Server Baru
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+# 1. Clone repository
+git clone https://github.com/pringlesoon/sistem-perencanaan.git
+cd sistem-perencanaan
+
+# 2. Install dependensi backend
+composer install --optimize-autoloader --no-dev
+
+# 3. Konfigurasi Environment
+cp .env.example .env
+php artisan key:generate
+
+# 4. Storage link & permission
+php artisan storage:link
+chmod -R 775 storage bootstrap/cache
+
+# 5. Build aset frontend
+npm install
+npm run build
+
+# 6. Optimize cache produksi
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+---
+
+## 🧪 Menjalankan Pengujian (Test Suite)
+
+Untuk memvalidasi integritas seluruh modul:
+```bash
+php artisan test
+```
+Seluruh 28 skenario pengujian unit & fitur (126 assertions) siap dan teruji lolos (`PASS`).

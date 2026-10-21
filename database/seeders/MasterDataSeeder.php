@@ -32,6 +32,20 @@ class MasterDataSeeder extends Seeder
                 'email' => 'rini.admin@kampus.ac.id',
                 'unit_kerja' => 'Divisi Marketing YARSI',
                 'role' => 'SuperAdmin',
+                'is_active' => true,
+                'password' => Hash::make('password'),
+            ]
+        );
+
+        // 2b. Tata Usaha
+        $sari = User::firstOrCreate(
+            ['username' => 'sari'],
+            [
+                'name' => 'Sari Indah',
+                'email' => 'sari.tu@kampus.ac.id',
+                'unit_kerja' => 'Tata Usaha Fakultas Kedokteran',
+                'role' => 'Tata Usaha',
+                'is_active' => true,
                 'password' => Hash::make('password'),
             ]
         );
