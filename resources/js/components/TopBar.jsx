@@ -1,19 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
-import { ChevronDown, LogOut, Menu, Shield, User } from 'lucide-react';
+import { ChevronDown, ChevronRight, Home, LogOut, Menu, Shield, User } from 'lucide-react';
 
-// Page titles map
-const PAGE_TITLES = {
-    dashboard: { title: 'Dasbor Utama', subtitle: 'Selamat datang di SLM YARSI' },
-    tracking: { title: 'Tracking Permohonan', subtitle: 'Pantau status semua permohonan' },
-    approvals: { title: 'Antrean Approval', subtitle: 'Kelola persetujuan permohonan' },
-    analytics: { title: 'Dasbor Analitik', subtitle: 'Laporan dan statistik layanan' },
-    settings: { title: 'Kelola Layanan', subtitle: 'Konfigurasi layanan sistem' },
-    users: { title: 'Kelola Pengguna', subtitle: 'Manajemen pengguna & PIC layanan' },
-    stock: { title: 'Manajemen Stok', subtitle: 'Inventaris alat promosi & suvenir' },
-    'schedule-slots': { title: 'Cek Availability Multimedia', subtitle: 'Penjadwalan & Peminjaman Ruangan/Alat' },
-    'request-form': { title: 'Form Permohonan', subtitle: 'Ajukan permohonan baru' },
+// Breadcrumbs map for each tab
+const PAGE_BREADCRUMBS = {
+    dashboard: { section: 'Beranda', page: 'Dasbor Utama' },
+    tracking: { section: 'Layanan', page: 'Tracking Permohonan' },
+    approvals: { section: 'Approval', page: 'Antrean Approval' },
+    analytics: { section: 'Laporan', page: 'Dasbor Analitik' },
+    settings: { section: 'Konfigurasi', page: 'Kelola Layanan' },
+    users: { section: 'Konfigurasi', page: 'Kelola Pengguna' },
+    stock: { section: 'Inventaris', page: 'Manajemen Stok' },
+    'inventory-multimedia': { section: 'Inventaris', page: 'Inventaris Alat' },
+    'schedule-slots': { section: 'Jadwal', page: 'Cek Availability Multimedia' },
+    'request-form': { section: 'Layanan', page: 'Form Permohonan' },
+    login: { section: 'Autentikasi', page: 'Masuk' },
 };
 
 const roleBadgeColors = {
@@ -36,7 +38,7 @@ export default function TopBar({ currentTab, setCurrentTab, onMobileMenuOpen }) 
     const [profileOpen, setProfileOpen] = useState(false);
     const profileRef = useRef(null);
 
-    const page = PAGE_TITLES[currentTab] || { title: 'SLM YARSI', subtitle: '' };
+    const breadcrumb = PAGE_BREADCRUMBS[currentTab] || { section: 'Beranda', page: 'SLM YARSI' };
 
     const roleBadgeColor = roleBadgeColors[user?.role] || 'bg-slate-100 text-slate-700';
 
@@ -54,12 +56,11 @@ export default function TopBar({ currentTab, setCurrentTab, onMobileMenuOpen }) 
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-
     return (
-        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-xs">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200/60 shadow-xs">
             <div className="flex items-center justify-between h-14 px-4 md:px-6">
-                {/* Left: Mobile menu toggle + Page title */}
-                <div className="flex items-center space-x-3">
+                {/* Left: Mobile menu toggle + Breadcrumbs Navigation */}
+                <div className="flex items-center space-x-2.5">
                     <button
                         onClick={onMobileMenuOpen}
                         className="md:hidden p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
@@ -67,10 +68,20 @@ export default function TopBar({ currentTab, setCurrentTab, onMobileMenuOpen }) 
                         <Menu className="w-5 h-5" />
                     </button>
 
-                    <div>
-                        <h1 className="text-sm font-bold text-slate-900 leading-tight">{page.title}</h1>
-                        <p className="text-[11px] text-slate-500 hidden sm:block">{page.subtitle}</p>
-                    </div>
+                    <nav className="flex items-center space-x-1.5 text-xs" aria-label="Breadcrumb">
+                        <button
+                            type="button"
+                            onClick={() => setCurrentTab('dashboard')}
+                            className="flex items-center text-slate-400 hover:text-slate-700 font-medium transition-colors cursor-pointer"
+                        >
+                            <Home className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                            <span>{breadcrumb.section}</span>
+                        </button>
+                        <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
+                        <span className="font-semibold text-slate-800 truncate max-w-[180px] sm:max-w-none">
+                            {breadcrumb.page}
+                        </span>
+                    </nav>
                 </div>
 
                 {/* Right: Tools */}

@@ -105,8 +105,8 @@ class SuvenirApprovalService
                 'catatan' => "Kuota diverifikasi oleh PIC Promosi ({$picUser->name}). Total kuota dialokasikan: {$totalDisetujui} unit. Diteruskan ke Admin untuk persetujuan." . ($catatan ? " Catatan PIC: {$catatan}" : ""),
             ]);
 
-            // Kirim notifikasi ke Admin & SuperAdmin
-            $admins = User::whereIn('role', ['Admin', 'SuperAdmin'])->get();
+            // Kirim notifikasi ke SuperAdmin
+            $admins = User::where('role', 'SuperAdmin')->get();
             foreach ($admins as $admin) {
                 Notification::create([
                     'user_id' => $admin->id,
@@ -147,7 +147,7 @@ class SuvenirApprovalService
             }
 
             $oldStatus = $permohonan->status;
-            $approverRoleName = $approver->role === 'SuperAdmin' ? 'Super Admin' : 'Admin';
+            $approverRoleName = 'Super Admin';
 
             // Jika ada perubahan kuota unit saat approval
             if (!empty($items) && is_array($items)) {

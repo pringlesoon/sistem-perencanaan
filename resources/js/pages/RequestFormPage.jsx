@@ -7,6 +7,7 @@ import CustomSelect from '../components/CustomSelect';
 import api from '../services/api';
 import TimePicker from '../components/TimePicker';
 import confetti from 'canvas-confetti';
+import Swal from 'sweetalert2';
 import { 
     Send, 
     ArrowLeft, 
@@ -30,13 +31,60 @@ import {
     Trash2
 } from 'lucide-react';
 
-export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
+const SERVICES_LIST = [
+    { code: 'D', name: 'Layanan Desain Grafis' },
+    { code: 'P', name: 'Layanan Publikasi Website & Social Media' },
+    { code: 'S', name: 'Layanan Permohonan Alat Promosi' },
+    { code: 'M', name: 'Layanan Multimedia & Dokumentasi' },
+    { code: 'L', name: 'Layanan Peliputan Berita' },
+];
+
+export default function RequestFormPage({ serviceCode, onSelectService, onBack, onSuccess }) {
     const { user } = useAuth();
     const [service, setService] = useState(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState(null);
     const [successTicket, setSuccessTicket] = useState(null);
+
+    // Cek pembatasan akses layanan eksklusif (Alat Promosi & Multimedia) untuk role User
+    useEffect(() => {
+        if (user?.role === 'User' && (serviceCode === 'S' || serviceCode === 'M')) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Akses Terbatas',
+                text: 'Mohon maaf, pengajuan layanan ini tidak dapat dilakukan secara langsung oleh akun Anda. Silakan hubungi PIC Layanan atau bagian Tata Usaha (TU) di fakultas Anda masing-masing untuk bantuan pengajuan.',
+                confirmButtonColor: '#4f46e5',
+                confirmButtonText: 'Kembali ke Layanan Lain',
+            }).then(() => {
+                if (onSelectService) {
+                    onSelectService('D');
+                } else if (onBack) {
+                    onBack();
+                }
+            });
+        }
+    }, [serviceCode, user]);
+
+    const handleDropdownChange = (newCode) => {
+        if (newCode === serviceCode) return;
+
+        // Jika role User memilih Alat Promosi (S) atau Multimedia (M)
+        if (user?.role === 'User' && (newCode === 'S' || newCode === 'M')) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Akses Terbatas',
+                text: 'Mohon maaf, pengajuan layanan ini tidak dapat dilakukan secara langsung oleh akun Anda. Silakan hubungi PIC Layanan atau bagian Tata Usaha (TU) di fakultas Anda masing-masing untuk bantuan pengajuan.',
+                confirmButtonColor: '#4f46e5',
+                confirmButtonText: 'Mengerti',
+            });
+            return; // Cegah form untuk dilanjutkan!
+        }
+
+        if (onSelectService) {
+            onSelectService(newCode);
+        }
+    };
 
     // Pastikan serviceCode tersimpan di localStorage dan URL hash agar saat refresh tetap di form layanan ini
     useEffect(() => {
@@ -208,6 +256,18 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErrorMsg(null);
+
+        // Validasi pembatasan akses layanan eksklusif di frontend
+        if (user?.role === 'User' && (serviceCode === 'S' || serviceCode === 'M')) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Akses Terbatas',
+                text: 'Mohon maaf, pengajuan layanan ini tidak dapat dilakukan secara langsung oleh akun Anda. Silakan hubungi PIC Layanan atau bagian Tata Usaha (TU) di fakultas Anda masing-masing untuk bantuan pengajuan.',
+                confirmButtonColor: '#4f46e5',
+                confirmButtonText: 'Mengerti',
+            });
+            return;
+        }
 
         // Validasi identitas pemohon (umum untuk semua layanan)
         if (!namaPemohon.trim()) {
@@ -630,10 +690,23 @@ export default function RequestFormPage({ serviceCode, onBack, onSuccess }) {
                 </button>
 
                 <div className="flex items-center space-x-2">
-                    <span className="text-xs font-bold text-slate-500">Formulir Layanan:</span>
-                    <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800">
-                        {service?.name}
-                    </span>
+                    <label htmlFor="service-dropdown-select" className="text-xs font-bold text-slate-500">
+                        Pilihan Layanan:
+                    </label>
+                    <div className="relative">
+                        <select
+                            id="service-dropdown-select"
+                            value={serviceCode}
+                            onChange={(e) => handleDropdownChange(e.target.value)}
+                            className="px-3 py-1.5 text-xs font-extrabold bg-white border border-indigo-200 rounded-xl shadow-xs text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                        >
+                            {SERVICES_LIST.map((svc) => (
+                                <option key={svc.code} value={svc.code}>
+                                    {svc.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             </div>
 

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import Swal from 'sweetalert2';
 import {
-    Users, Shield, UserCheck, UserX, Plus, Trash2,
+    Users, Shield, UserCheck, UserX,
     ChevronDown, Check, ShieldAlert, Loader2, RefreshCw,
-    Briefcase, AlertCircle, X
+    Briefcase, AlertCircle, X, Search, Filter,
+    ChevronLeft, ChevronRight, Power, Info, CheckCircle2, Lock
 } from 'lucide-react';
 import CustomSelect from '../components/CustomSelect';
 
@@ -16,54 +18,77 @@ const SERVICES = [
     { code: 'L', name: 'Layanan Liputan & Berita', color: 'rose' },
 ];
 
-const roleColor = {
+const roleBadgeColor = {
     SuperAdmin: 'bg-violet-100 text-violet-700 border-violet-200',
-    Admin: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    'Tata Usaha': 'bg-blue-100 text-blue-700 border-blue-200',
     PIC: 'bg-green-100 text-green-700 border-green-200',
     User: 'bg-slate-100 text-slate-700 border-slate-200',
 };
 
-const serviceColor = {
-    D: 'bg-indigo-50 text-indigo-700',
-    P: 'bg-sky-50 text-sky-700',
-    S: 'bg-amber-50 text-amber-700',
-    M: 'bg-emerald-50 text-emerald-700',
-    L: 'bg-rose-50 text-rose-700',
+const serviceBadgeColor = {
+    D: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+    P: 'bg-sky-50 text-sky-700 border border-sky-200',
+    S: 'bg-amber-50 text-amber-700 border border-amber-200',
+    M: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    L: 'bg-rose-50 text-rose-700 border border-rose-200',
 };
 
-function AssignPicModal({ user, onClose, onAssigned }) {
-    const [selectedService, setSelectedService] = useState(user.pic_service_code || '');
-    const [loading, setLoading] = useState(false);
+/**
+ * Modal untuk Ubah Role & PIC Layanan (Superadmin Only)
+ */
+function ChangeRoleModal({ user, onClose, onUpdated }) {
+    const [selectedRole, setSelectedRole] = useState(user.role || 'User');
+    const [selectedService, setSelectedService] = useState(user.pic_service_code || 'D');
+    const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        setSubmitting(true);
         setError(null);
+
         try {
-            const res = await api.patch(`/users/${user.id}/assign-pic`, {
-                service_code: selectedService || null,
-            });
+            const payload = {
+                role: selectedRole,
+                pic_service_code: selectedRole === 'PIC' ? selectedService : null,
+            };
+
+            const res = await api.patch(`/users/${user.id}/role`, payload);
             if (res.data?.status === 'success') {
-                onAssigned(res.data.message);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Role Diperbarui',
+                    text: res.data.message || `Role akun ${user.name} berhasil diperbarui.`,
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
+                onUpdated();
                 onClose();
             }
         } catch (err) {
-            setError(err.response?.data?.message || 'Gagal menetapkan PIC.');
+            setError(err.response?.data?.message || 'Gagal memperbarui role pengguna.');
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
     return (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
                     <div>
-                        <h3 className="font-bold text-slate-900 text-sm">Tetapkan PIC Layanan</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Untuk: <strong>{user.name}</strong></p>
+                        <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                            <Shield className="w-4 h-4 text-violet-600" />
+                            <span>Ubah Role Pengguna</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            Untuk: <strong>{user.name}</strong> ({user.username})
+                        </p>
                     </div>
-                    <button onClick={onClose} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+                    <button
+                        onClick={onClose}
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -75,143 +100,88 @@ function AssignPicModal({ user, onClose, onAssigned }) {
                     </div>
                 )}
 
+                <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] text-slate-600 space-y-1">
+                    <p className="font-semibold text-slate-700 flex items-center gap-1">
+                        <Lock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Data Sinkronisasi LDAP Kampus (Read-Only)</span>
+                    </p>
+                    <p className="text-slate-500">Nama, email, dan password dikelola terpusat via SSO Kampus dan tidak dapat diubah di sini.</p>
+                </div>
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-xs font-bold text-slate-700 mb-2">
-                            Pilih Layanan (kosongkan untuk hapus PIC)
+                            Pilih Hak Akses (Role):
                         </label>
-                        <div className="space-y-2">
-                            <button
-                                type="button"
-                                onClick={() => setSelectedService('')}
-                                className={`w-full text-left px-3 py-2.5 rounded-xl border text-xs font-medium transition-all ${
-                                    selectedService === ''
-                                        ? 'bg-slate-800 text-white border-slate-800'
-                                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
-                                }`}
-                            >
-                                <div className="flex items-center space-x-2">
-                                    <UserX className="w-3.5 h-3.5" />
-                                    <span>Tidak ada (Role: User biasa)</span>
-                                </div>
-                            </button>
-                            {SERVICES.map(svc => (
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                { key: 'User', label: 'User Biasa', desc: 'Pengajuan standar' },
+                                { key: 'Tata Usaha', label: 'Tata Usaha (TU)', desc: 'Akses penuh seluruh 5 layanan' },
+                                { key: 'PIC', label: 'PIC Layanan', desc: 'Verifikasi & tindak lanjut' },
+                                { key: 'SuperAdmin', label: 'Super Admin', desc: 'Akses penuh sistem' },
+                            ].map(item => (
                                 <button
-                                    key={svc.code}
+                                    key={item.key}
                                     type="button"
-                                    onClick={() => setSelectedService(svc.code)}
-                                    className={`w-full text-left px-3 py-2.5 rounded-xl border text-xs font-medium transition-all ${
-                                        selectedService === svc.code
-                                            ? 'bg-green-600 text-white border-green-600'
-                                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                                    onClick={() => setSelectedRole(item.key)}
+                                    className={`p-2.5 text-left rounded-xl border transition-all cursor-pointer ${
+                                        selectedRole === item.key
+                                            ? 'bg-violet-50 border-violet-500 ring-2 ring-violet-200 text-violet-900'
+                                            : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
                                     }`}
                                 >
                                     <div className="flex items-center justify-between">
-                                        <span>{svc.name}</span>
-                                        {selectedService === svc.code && <Check className="w-3.5 h-3.5" />}
+                                        <span className="text-xs font-bold">{item.label}</span>
+                                        {selectedRole === item.key && <Check className="w-3.5 h-3.5 text-violet-600" />}
                                     </div>
+                                    <span className="text-[10px] text-slate-500 block mt-0.5">{item.desc}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    <div className="flex justify-end space-x-2 pt-2">
+                    {selectedRole === 'PIC' && (
+                        <div className="pt-2 border-t border-slate-100 animate-in fade-in duration-200">
+                            <label className="block text-xs font-bold text-slate-700 mb-2">
+                                Tetapkan Sebagai PIC Layanan: <span className="text-rose-500">*</span>
+                            </label>
+                            <div className="space-y-2">
+                                {SERVICES.map(svc => (
+                                    <button
+                                        key={svc.code}
+                                        type="button"
+                                        onClick={() => setSelectedService(svc.code)}
+                                        className={`w-full text-left px-3 py-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                                            selectedService === svc.code
+                                                ? 'bg-green-600 text-white border-green-600 shadow-xs'
+                                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span>[{svc.code}] {svc.name}</span>
+                                            {selectedService === svc.code && <Check className="w-3.5 h-3.5" />}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                            className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                         >
                             Batal
                         </button>
                         <button
                             type="submit"
-                            disabled={loading}
-                            className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center space-x-1.5 disabled:opacity-60"
+                            disabled={submitting}
+                            className="px-5 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center space-x-1.5 disabled:opacity-60 transition-colors cursor-pointer"
                         >
-                            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                            <span>{loading ? 'Menyimpan...' : 'Simpan'}</span>
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-function AddUserModal({ onClose, onAdded }) {
-    const [form, setForm] = useState({ name: '', username: '', email: '', unit_kerja: '', password: '' });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await api.post('/users', form);
-            if (res.data?.status === 'success') {
-                onAdded(res.data.message);
-                onClose();
-            }
-        } catch (err) {
-            setError(err.response?.data?.message || Object.values(err.response?.data?.errors || {}).flat().join(', ') || 'Gagal membuat akun.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100">
-                    <div>
-                        <h3 className="font-bold text-slate-900 text-sm">Tambah Pengguna Baru</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Role default: User (bisa diatur sebagai PIC)</p>
-                    </div>
-                    <button onClick={onClose} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                {error && (
-                    <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start space-x-2">
-                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                        <span>{error}</span>
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-3">
-                    {[
-                        { key: 'name', label: 'Nama Lengkap', placeholder: 'Nama pengguna', required: true },
-                        { key: 'username', label: 'Username', placeholder: 'username unik', required: true },
-                        { key: 'email', label: 'Email', placeholder: 'email@kampus.ac.id', type: 'email', required: true },
-                        { key: 'unit_kerja', label: 'Unit Kerja', placeholder: 'Divisi/Biro/Fakultas', required: false },
-                        { key: 'password', label: 'Password', placeholder: 'Min. 6 karakter', type: 'password', required: true },
-                    ].map(field => (
-                        <div key={field.key}>
-                            <label className="block text-xs font-bold text-slate-700 mb-1">{field.label} {field.required && <span className="text-rose-500">*</span>}</label>
-                            <input
-                                type={field.type || 'text'}
-                                value={form[field.key]}
-                                onChange={e => setForm(prev => ({ ...prev, [field.key]: e.target.value }))}
-                                placeholder={field.placeholder}
-                                required={field.required}
-                                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-green-500 outline-none"
-                            />
-                        </div>
-                    ))}
-
-                    <div className="flex justify-end space-x-2 pt-3">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">
-                            Batal
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center space-x-1.5 disabled:opacity-60"
-                        >
-                            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                            <span>{loading ? 'Membuat...' : 'Buat Akun'}</span>
+                            {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                            <span>{submitting ? 'Menyimpan...' : 'Simpan Role'}</span>
                         </button>
                     </div>
                 </form>
@@ -221,246 +191,401 @@ function AddUserModal({ onClose, onAdded }) {
 }
 
 export default function UserManagementPage() {
-    const { user } = useAuth();
+    const { user: currentUser } = useAuth();
     const [users, setUsers] = useState([]);
+    const [pagination, setPagination] = useState({
+        current_page: 1,
+        last_page: 1,
+        total: 0,
+        per_page: 10,
+        from: 0,
+        to: 0,
+    });
     const [loading, setLoading] = useState(true);
-    const [toast, setToast] = useState(null);
-    const [assignModal, setAssignModal] = useState(null);
-    const [addModal, setAddModal] = useState(false);
-    const [deletingId, setDeletingId] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    const [selectedUserForRole, setSelectedUserForRole] = useState(null);
+    const [actionLoadingId, setActionLoadingId] = useState(null);
 
-    const showToast = (msg, type = 'success') => {
-        setToast({ msg, type });
-        setTimeout(() => setToast(null), 3500);
-    };
-
-    const loadUsers = async () => {
+    const loadUsers = async (page = 1) => {
         setLoading(true);
         try {
-            const res = await api.get('/users');
+            const params = {
+                page: page,
+                per_page: 10,
+            };
+            if (searchTerm.trim()) params.search = searchTerm.trim();
+            if (filterRole) params.role = filterRole;
+            if (filterStatus) params.status = filterStatus;
+
+            const res = await api.get('/users', { params });
             if (res.data?.status === 'success') {
-                setUsers(res.data.data);
+                const paginated = res.data.data;
+                setUsers(paginated.data || []);
+                setPagination({
+                    current_page: paginated.current_page || 1,
+                    last_page: paginated.last_page || 1,
+                    total: paginated.total || 0,
+                    per_page: paginated.per_page || 10,
+                    from: paginated.from || 0,
+                    to: paginated.to || 0,
+                });
             }
         } catch (err) {
-            showToast('Gagal memuat data pengguna.', 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Memuat Data',
+                text: err.response?.data?.message || 'Terjadi kesalahan saat memuat data pengguna.',
+            });
         } finally {
             setLoading(false);
         }
     };
 
+    // Load initial data & reload when filters change
     useEffect(() => {
-        loadUsers();
-    }, []);
+        const timeout = setTimeout(() => {
+            loadUsers(1);
+        }, 300);
+        return () => clearTimeout(timeout);
+    }, [searchTerm, filterRole, filterStatus]);
 
-    const handleDelete = async (u) => {
-        if (!confirm(`Hapus akun "${u.name}"? Tindakan ini tidak dapat dibatalkan.`)) return;
-        setDeletingId(u.id);
+    // Handler Toggle Status Akun (Aktifkan / Nonaktifkan)
+    const handleToggleStatus = async (user) => {
+        if (currentUser && user.id === currentUser.id) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Operasi Dibatalkan',
+                text: 'Anda tidak dapat menonaktifkan akun Anda sendiri.',
+            });
+            return;
+        }
+
+        const willDeactivate = user.is_active;
+        const confirmTitle = willDeactivate ? 'Nonaktifkan Akun Pengguna?' : 'Aktifkan Kembali Akun Pengguna?';
+        const confirmText = willDeactivate
+            ? `Pengguna "${user.name}" (${user.username}) tidak akan dapat login ke dalam sistem meskipun password LDAP-nya benar.`
+            : `Pengguna "${user.name}" (${user.username}) akan dapat login kembali ke dalam sistem menggunakan akun LDAP kampus.`;
+
+        const result = await Swal.fire({
+            icon: willDeactivate ? 'warning' : 'question',
+            title: confirmTitle,
+            text: confirmText,
+            showCancelButton: true,
+            confirmButtonColor: willDeactivate ? '#e11d48' : '#16a34a',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: willDeactivate ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan',
+            cancelButtonText: 'Batal',
+        });
+
+        if (!result.isConfirmed) return;
+
+        setActionLoadingId(user.id);
         try {
-            const res = await api.delete(`/users/${u.id}`);
+            const res = await api.patch(`/users/${user.id}/toggle-status`, {
+                is_active: !user.is_active,
+            });
+
             if (res.data?.status === 'success') {
-                showToast(res.data.message);
-                loadUsers();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Status Berhasil Diubah',
+                    text: res.data.message,
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
+                loadUsers(pagination.current_page);
             }
         } catch (err) {
-            showToast(err.response?.data?.message || 'Gagal menghapus akun.', 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Mengubah Status',
+                text: err.response?.data?.message || 'Gagal mengubah status akun pengguna.',
+            });
         } finally {
-            setDeletingId(null);
+            setActionLoadingId(null);
         }
     };
 
-    if (!user?.isSuperAdmin?.()) {
+    if (!currentUser?.isSuperAdmin?.() && currentUser?.role !== 'SuperAdmin') {
         return (
-            <div className="max-w-md mx-auto py-16 text-center">
+            <div className="max-w-md mx-auto py-16 text-center animate-in fade-in duration-300">
                 <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto mb-3" />
-                <h3 className="font-bold text-slate-800">Akses Ditolak</h3>
-                <p className="text-xs text-slate-500 mt-1">Halaman ini hanya dapat diakses oleh Super Admin.</p>
+                <h3 className="font-bold text-slate-800 text-base">Akses Ditolak</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                    Modul ini dilindungi middleware dan hanya dapat diakses oleh akun dengan role <strong>Super Admin</strong>.
+                </p>
             </div>
         );
     }
 
-    const filteredUsers = filterRole
-        ? users.filter(u => u.role === filterRole)
-        : users;
-
-    const picByService = {};
-    SERVICES.forEach(svc => {
-        picByService[svc.code] = users.filter(u => u.pic_service_code === svc.code && u.role === 'PIC');
-    });
-
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
-            {/* Toast */}
-            {toast && (
-                <div className={`fixed top-5 right-5 z-50 flex items-center space-x-2 px-4 py-3 rounded-2xl shadow-xl text-xs font-bold animate-in slide-in-from-right duration-300 ${
-                    toast.type === 'error' ? 'bg-rose-600 text-white' : 'bg-green-600 text-white'
-                }`}>
-                    {toast.type === 'error' ? <AlertCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
-                    <span>{toast.msg}</span>
-                </div>
-            )}
-
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-in fade-in duration-300">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <div className="flex items-center space-x-2 text-violet-700 text-xs font-bold uppercase tracking-wider mb-1">
                         <Shield className="w-4 h-4" />
-                        <span>Super Admin — Kelola Pengguna</span>
+                        <span>Super Admin — User Management (LDAP Integrated)</span>
                     </div>
                     <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                        Manajemen Pengguna & PIC Layanan
+                        Manajemen Pengguna & Hak Akses
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                        Tetapkan pengguna sebagai PIC di setiap layanan. Role mereka akan diperbarui otomatis.
+                        Kelola role dan status akses civitas kampus. Seluruh akun terautentikasi melalui Direktori LDAP YARSI.
                     </p>
                 </div>
                 <div className="flex items-center space-x-2">
                     <button
-                        onClick={loadUsers}
-                        className="p-2 text-slate-400 hover:text-green-600 hover:bg-slate-100 rounded-xl transition-colors"
-                        title="Refresh"
+                        onClick={() => loadUsers(pagination.current_page)}
+                        className="p-2.5 text-slate-500 hover:text-violet-600 hover:bg-violet-50 border border-slate-200 rounded-xl transition-colors cursor-pointer flex items-center space-x-1.5 text-xs font-bold"
+                        title="Segarkan Data"
                     >
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
-                    <button
-                        onClick={() => setAddModal(true)}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center space-x-1.5 transition-colors"
-                    >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Tambah Pengguna</span>
+                        <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                        <span className="hidden sm:inline">Refresh</span>
                     </button>
                 </div>
             </div>
 
-            {/* PIC per Service Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                {SERVICES.map(svc => {
-                    const pics = picByService[svc.code] || [];
-                    return (
-                        <div key={svc.code} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
-                            <div className="flex items-start justify-between mb-2">
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${serviceColor[svc.code]}`}>
-                                    <Briefcase className="w-3 h-3" />
-                                    <span>Layanan</span>
-                                </span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pics.length > 0 ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-                                    {pics.length > 0 ? `${pics.length} PIC` : 'Kosong'}
-                                </span>
-                            </div>
-                            <p className="text-[11px] font-bold text-slate-800 leading-tight mb-1">{svc.name}</p>
-                            {pics.length > 0 ? (
-                                <p className="text-[10px] text-slate-600 truncate">{pics.map(p => p.name).join(', ')}</p>
-                            ) : (
-                                <p className="text-[10px] text-slate-400 italic">Belum ada PIC</p>
-                            )}
-                        </div>
-                    );
-                })}
+            {/* Banner Informasi Keamanan Sinkronisasi LDAP */}
+            <div className="bg-gradient-to-r from-violet-50 via-indigo-50 to-slate-50 border border-violet-200/80 rounded-2xl p-4 flex items-start space-x-3 text-xs">
+                <Info className="w-5 h-5 text-violet-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                    <p className="font-bold text-violet-900">
+                        Keamanan & Kebijakan Data Akun Civitas (Single Source of Truth)
+                    </p>
+                    <p className="text-slate-600 leading-relaxed text-[11px]">
+                        Profil utama civitas (Nama Lengkap, NIP/NPM, Email, dan Unit Kerja) terikat langsung dengan Direktori LDAP Universitas YARSI dan bersifat <strong>Read-Only</strong> untuk menjaga integritas data. Superadmin berwenang mengubah <strong>Role</strong> dan melakukan <strong>Aktivasi/Nonaktivasi</strong> akun.
+                    </p>
+                </div>
             </div>
 
-            {/* User Table */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs">
-                <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+            {/* Filter & Search Bar */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row items-center gap-3">
+                {/* Search Input */}
+                <div className="relative flex-1 w-full">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Cari berdasarkan nama, NIP/NPM, username, atau email..."
+                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    />
+                    {searchTerm && (
+                        <button
+                            onClick={() => setSearchTerm('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Filter Role */}
+                <div className="w-full sm:w-48">
+                    <CustomSelect
+                        value={filterRole}
+                        onChange={(val) => setFilterRole(val)}
+                        options={[
+                            { value: '', label: 'Semua Role' },
+                            { value: 'SuperAdmin', label: 'SuperAdmin', colorDot: 'bg-violet-500' },
+                            { value: 'Tata Usaha', label: 'Tata Usaha', colorDot: 'bg-blue-500' },
+                            { value: 'PIC', label: 'PIC Layanan', colorDot: 'bg-green-500' },
+                            { value: 'User', label: 'User Biasa', colorDot: 'bg-slate-400' },
+                        ]}
+                        placeholder="Filter Role"
+                    />
+                </div>
+
+                {/* Filter Status */}
+                <div className="w-full sm:w-44">
+                    <CustomSelect
+                        value={filterStatus}
+                        onChange={(val) => setFilterStatus(val)}
+                        options={[
+                            { value: '', label: 'Semua Status' },
+                            { value: 'active', label: 'Akun Aktif', colorDot: 'bg-emerald-500' },
+                            { value: 'inactive', label: 'Akun Nonaktif', colorDot: 'bg-rose-500' },
+                        ]}
+                        placeholder="Filter Status"
+                    />
+                </div>
+            </div>
+
+            {/* User Table Card */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                        <Users className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-bold text-slate-800">Daftar Pengguna</span>
-                        <span className="text-xs text-slate-500">({filteredUsers.length} dari {users.length})</span>
+                        <Users className="w-4 h-4 text-violet-600" />
+                        <span className="text-sm font-bold text-slate-800">Daftar Pengguna Kampus</span>
+                        <span className="text-xs text-slate-500 font-medium">
+                            ({pagination.total} total akun)
+                        </span>
                     </div>
-                    <div className="ml-auto flex items-center space-x-2">
-                        <CustomSelect
-                            value={filterRole}
-                            onChange={val => setFilterRole(val)}
-                            options={[
-                                { value: '', label: 'Semua Role' },
-                                { value: 'SuperAdmin', label: 'SuperAdmin', colorDot: 'bg-violet-500' },
-                                { value: 'Admin', label: 'Admin', colorDot: 'bg-indigo-500' },
-                                { value: 'PIC', label: 'PIC', colorDot: 'bg-green-500' },
-                                { value: 'User', label: 'User', colorDot: 'bg-slate-400' },
-                            ]}
-                            placeholder="Filter Role"
-                            align="right"
-                        />
-                    </div>
+                    <span className="text-[11px] text-slate-400 hidden sm:inline">
+                        Maksimal 10 baris per halaman
+                    </span>
                 </div>
 
                 {loading ? (
-                    <div className="py-16 text-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-green-500 mx-auto mb-3" />
-                        <p className="text-xs text-slate-400 font-bold">Memuat data pengguna...</p>
+                    <div className="py-20 text-center">
+                        <Loader2 className="w-8 h-8 animate-spin text-violet-600 mx-auto mb-3" />
+                        <p className="text-xs text-slate-500 font-bold">Memuat data pengguna LDAP...</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-xs">
                             <thead>
-                                <tr className="bg-slate-50 border-b border-slate-100">
-                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Pengguna</th>
-                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Unit Kerja</th>
-                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Role</th>
-                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">PIC Layanan</th>
-                                    <th className="text-left px-4 py-3 text-slate-500 font-bold uppercase tracking-wider text-[10px]">Aksi</th>
+                                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 uppercase font-bold text-[10px] tracking-wider">
+                                    <th className="text-left px-5 py-3.5">Pengguna & Akun LDAP</th>
+                                    <th className="text-left px-4 py-3.5">Unit Kerja / Fakultas</th>
+                                    <th className="text-left px-4 py-3.5">Role Saat Ini</th>
+                                    <th className="text-left px-4 py-3.5">Status Akses</th>
+                                    <th className="text-right px-5 py-3.5">Aksi Superadmin</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredUsers.map(u => (
-                                    <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center space-x-3">
-                                                <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs shrink-0">
-                                                    {u.name.charAt(0)}
+                                {users.map((u) => {
+                                    const isSelf = currentUser && u.id === currentUser.id;
+                                    const isLoadingRow = actionLoadingId === u.id;
+
+                                    return (
+                                        <tr
+                                            key={u.id}
+                                            className={`hover:bg-slate-50/80 transition-colors ${
+                                                !u.is_active ? 'bg-slate-50/40 opacity-75' : ''
+                                            }`}
+                                        >
+                                            {/* Pengguna & Akun LDAP (Read-Only) */}
+                                            <td className="px-5 py-3.5">
+                                                <div className="flex items-center space-x-3">
+                                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${
+                                                        u.is_active ? 'bg-violet-100 text-violet-800' : 'bg-slate-200 text-slate-500'
+                                                    }`}>
+                                                        {u.name ? u.name.charAt(0).toUpperCase() : '?'}
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex items-center space-x-1.5">
+                                                            <p className="font-bold text-slate-900 leading-tight">
+                                                                {u.name}
+                                                            </p>
+                                                            {isSelf && (
+                                                                <span className="text-[9px] font-black px-1.5 py-0.2 bg-violet-100 text-violet-700 rounded-md">
+                                                                    Anda
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-[11px] text-slate-500 font-medium">
+                                                            NIP/NPM: <span className="font-mono text-slate-700">{u.username}</span>
+                                                        </p>
+                                                        <p className="text-[10px] text-slate-400">
+                                                            {u.email}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-bold text-slate-800">{u.name}</p>
-                                                    <p className="text-[10px] text-slate-400">{u.email}</p>
+                                            </td>
+
+                                            {/* Unit Kerja */}
+                                            <td className="px-4 py-3.5 text-slate-600 font-medium">
+                                                {u.unit_kerja || '-'}
+                                            </td>
+
+                                            {/* Role */}
+                                            <td className="px-4 py-3.5">
+                                                <div className="space-y-1">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${
+                                                        roleBadgeColor[u.role] || 'bg-slate-100 text-slate-600 border-slate-200'
+                                                    }`}>
+                                                        {u.role === 'SuperAdmin' ? 'Super Admin' : u.role}
+                                                    </span>
+                                                    {u.role === 'PIC' && u.pic_service_code && (
+                                                        <div>
+                                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                                                serviceBadgeColor[u.pic_service_code] || 'bg-slate-100 text-slate-700'
+                                                            }`}>
+                                                                <Briefcase className="w-3 h-3" />
+                                                                <span>{u.pic_service?.name || `Layanan [${u.pic_service_code}]`}</span>
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-600">{u.unit_kerja || '-'}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`inline-flex px-2 py-0.5 rounded-full border text-[10px] font-bold ${roleColor[u.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                                {u.role}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            {u.pic_service_code ? (
-                                                <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${serviceColor[u.pic_service_code]}`}>
-                                                    <Briefcase className="w-3 h-3" />
-                                                    <span>{u.pic_service ? u.pic_service.name : (SERVICES.find(s => s.code === u.pic_service_code)?.name || 'Layanan')}</span>
-                                                </span>
-                                            ) : (
-                                                <span className="text-slate-400">-</span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            {u.role !== 'SuperAdmin' && (
-                                                <div className="flex items-center space-x-1">
+                                            </td>
+
+                                            {/* Status Akun */}
+                                            <td className="px-4 py-3.5">
+                                                {u.is_active ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                        <span>Aktif</span>
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                                        <span>Nonaktif</span>
+                                                    </span>
+                                                )}
+                                            </td>
+
+                                            {/* Aksi Superadmin */}
+                                            <td className="px-5 py-3.5 text-right">
+                                                <div className="flex items-center justify-end space-x-2">
+                                                    {/* Tombol Ubah Role */}
                                                     <button
-                                                        onClick={() => setAssignModal(u)}
-                                                        className="px-2.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-[10px] font-bold flex items-center space-x-1 transition-colors"
+                                                        onClick={() => setSelectedUserForRole(u)}
+                                                        disabled={isSelf}
+                                                        className={`px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center space-x-1.5 transition-colors cursor-pointer ${
+                                                            isSelf
+                                                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                                : 'bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200'
+                                                        }`}
+                                                        title={isSelf ? 'Tidak dapat mengubah role sendiri' : 'Ubah Role Pengguna'}
                                                     >
-                                                        <UserCheck className="w-3 h-3" />
-                                                        <span>Atur PIC</span>
+                                                        <Shield className="w-3.5 h-3.5" />
+                                                        <span>Ubah Role</span>
                                                     </button>
+
+                                                    {/* Tombol Toggle Status */}
                                                     <button
-                                                        onClick={() => handleDelete(u)}
-                                                        disabled={deletingId === u.id}
-                                                        className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                                        title="Hapus akun"
-                                                    >
-                                                        {deletingId === u.id
-                                                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                            : <Trash2 className="w-3.5 h-3.5" />
+                                                        onClick={() => handleToggleStatus(u)}
+                                                        disabled={isSelf || isLoadingRow || (u.role === 'SuperAdmin' && u.is_active)}
+                                                        className={`px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center space-x-1.5 transition-colors cursor-pointer ${
+                                                            isSelf || (u.role === 'SuperAdmin' && u.is_active)
+                                                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                                : u.is_active
+                                                                    ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                                                                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                                                        }`}
+                                                        title={
+                                                            isSelf
+                                                                ? 'Tidak dapat menonaktifkan akun sendiri'
+                                                                : u.is_active
+                                                                    ? 'Klik untuk menonaktifkan akun'
+                                                                    : 'Klik untuk mengaktifkan akun'
                                                         }
+                                                    >
+                                                        {isLoadingRow ? (
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                        ) : (
+                                                            <Power className="w-3.5 h-3.5" />
+                                                        )}
+                                                        <span>{u.is_active ? 'Nonaktifkan' : 'Aktifkan'}</span>
                                                     </button>
                                                 </div>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {filteredUsers.length === 0 && (
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+
+                                {users.length === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-12 text-center text-slate-400">
-                                            <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                            <p className="text-xs font-medium">Tidak ada pengguna ditemukan.</p>
+                                        <td colSpan={5} className="px-4 py-16 text-center text-slate-400">
+                                            <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                            <p className="text-xs font-bold text-slate-600">Tidak ada data pengguna ditemukan.</p>
+                                            <p className="text-[11px] text-slate-400 mt-0.5">
+                                                Coba periksa kata kunci pencarian atau sesuaikan filter role dan status.
+                                            </p>
                                         </td>
                                     </tr>
                                 )}
@@ -468,20 +593,45 @@ export default function UserManagementPage() {
                         </table>
                     </div>
                 )}
+
+                {/* Pagination Footer (Max 10 baris per halaman) */}
+                <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                    <div className="text-slate-500 font-medium">
+                        Menampilkan <strong className="text-slate-800">{pagination.from || 0}</strong> - <strong className="text-slate-800">{pagination.to || 0}</strong> dari <strong className="text-slate-800">{pagination.total}</strong> akun
+                    </div>
+
+                    <div className="flex items-center space-x-1">
+                        <button
+                            onClick={() => loadUsers(pagination.current_page - 1)}
+                            disabled={pagination.current_page <= 1 || loading}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                        >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                            <span>Sebelumnya</span>
+                        </button>
+
+                        <div className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl">
+                            {pagination.current_page} / {pagination.last_page || 1}
+                        </div>
+
+                        <button
+                            onClick={() => loadUsers(pagination.current_page + 1)}
+                            disabled={pagination.current_page >= pagination.last_page || loading}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                        >
+                            <span>Selanjutnya</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            {/* Modals */}
-            {assignModal && (
-                <AssignPicModal
-                    user={assignModal}
-                    onClose={() => setAssignModal(null)}
-                    onAssigned={(msg) => { showToast(msg); loadUsers(); }}
-                />
-            )}
-            {addModal && (
-                <AddUserModal
-                    onClose={() => setAddModal(false)}
-                    onAdded={(msg) => { showToast(msg); loadUsers(); }}
+            {/* Modal Ubah Role */}
+            {selectedUserForRole && (
+                <ChangeRoleModal
+                    user={selectedUserForRole}
+                    onClose={() => setSelectedUserForRole(null)}
+                    onUpdated={() => loadUsers(pagination.current_page)}
                 />
             )}
         </div>

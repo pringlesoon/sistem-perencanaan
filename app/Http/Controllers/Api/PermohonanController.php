@@ -50,10 +50,10 @@ class PermohonanController extends Controller
             ->orderBy('created_at', 'desc');
 
         // FR-TRK-05: Isolasi Hak Akses
-        // User biasa hanya melihat permohonan miliknya sendiri.
+        // User biasa & Tata Usaha hanya melihat permohonan miliknya sendiri.
         // PIC hanya melihat permohonan dari layanan mereka.
-        // Admin, SuperAdmin melihat seluruh permohonan.
-        if ($user->role === 'User') {
+        // SuperAdmin melihat seluruh permohonan.
+        if (in_array($user->role, ['User', 'Tata Usaha'])) {
             $query->where('user_id', $user->id);
         } elseif ($user->role === 'PIC') {
             if ($user->pic_service_code) {
@@ -144,6 +144,15 @@ class PermohonanController extends Controller
             'tanggal_dibutuhkan' => 'nullable|date',
             'attachments.*' => 'nullable|file|max:10240|mimes:pdf,jpg,jpeg,png,docx',
         ]);
+
+        // Aturan Bisnis RBAC: Layanan Alat Promosi (S) & Multimedia (M) eksklusif
+        // Pengguna dengan role default "User" tidak diizinkan mengajukan langsung
+        if ($user->role === 'User' && in_array($request->service_code, ['S', 'M'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Mohon maaf, pengajuan layanan ini tidak dapat dilakukan secara langsung oleh akun Anda. Silakan hubungi PIC Layanan atau bagian Tata Usaha (TU) di fakultas Anda masing-masing untuk bantuan pengajuan.',
+            ], 403);
+        }
 
         $service = Service::where('code', $request->service_code)->firstOrFail();
 
@@ -336,7 +345,7 @@ class PermohonanController extends Controller
                     // Notifikasi ke PIC Alat Promosi & Admin
                     $pics = User::where('role', 'PIC')->where('pic_service_code', 'S')->get();
                     if ($pics->isEmpty()) {
-                        $pics = User::whereIn('role', ['Admin', 'SuperAdmin'])->get();
+                        $pics = User::where('role', 'SuperAdmin')->get();
                     }
                     foreach ($pics as $picUser) {
                         Notification::create([
@@ -376,8 +385,8 @@ class PermohonanController extends Controller
                     }
                 }
 
-                // Notifikasi in-app untuk Admin bahwa ada permohonan baru
-                $admins = User::where('role', 'Admin')->get();
+                // Notifikasi in-app untuk SuperAdmin bahwa ada permohonan baru
+                $admins = User::where('role', 'SuperAdmin')->get();
                 foreach ($admins as $admin) {
                     Notification::create([
                         'user_id' => $admin->id,
@@ -474,9 +483,9 @@ class PermohonanController extends Controller
 
         $permohonan = Permohonan::with(['service', 'user', 'multimediaDetail'])->findOrFail($id);
 
-        // Otorisasi: Admin & SuperAdmin berhak untuk semua; PIC hanya untuk layanannya sendiri
+        // Otorisasi: SuperAdmin berhak untuk semua; PIC hanya untuk layanannya sendiri
         $isAuthorized = false;
-        if (in_array($user->role, ['Admin', 'SuperAdmin'])) {
+        if ($user->role === 'SuperAdmin') {
             $isAuthorized = true;
         } elseif ($user->role === 'PIC') {
             $picCatMap = ['D' => 'Desain', 'P' => 'Publikasi', 'S' => 'Suvenir', 'M' => 'Multimedia', 'L' => 'Liputan'];
@@ -606,7 +615,8 @@ class PermohonanController extends Controller
             $actorTitle = match ($user->role) {
                 'PIC' => 'PIC ' . ($permohonan->service?->name ?? 'Layanan'),
                 'SuperAdmin' => 'Super Admin',
-                default => 'Admin'
+                'Tata Usaha' => 'Tata Usaha',
+                default => 'Pemohon'
             };
 
             // 1. Buat record StatusHistory terlebih dahulu
@@ -678,11 +688,11 @@ class PermohonanController extends Controller
 
         $permohonan = Permohonan::where('id', $id)->firstOrFail();
 
-        $canManage = $user->isSuperAdmin() || $user->isAdmin() || ($user->role === 'PIC' && $user->pic_service_code === 'S');
+        $canManage = $user->isSuperAdmin() || ($user->role === 'PIC' && $user->pic_service_code === 'S');
         if (!$canManage) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Akses ditolak. Hanya PIC Alat Promosi atau Admin yang berhak memverifikasi kuota ini.',
+                'message' => 'Akses ditolak. Hanya PIC Alat Promosi atau Super Admin yang berhak memverifikasi kuota ini.',
             ], 403);
         }
 
@@ -702,7 +712,7 @@ class PermohonanController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Kuota suvenir berhasil diverifikasi dan diteruskan ke Admin untuk approval.',
+            'message' => 'Kuota suvenir berhasil diverifikasi dan diteruskan ke Super Admin untuk approval.',
             'data' => $updated,
         ]);
     }
@@ -719,11 +729,11 @@ class PermohonanController extends Controller
 
         $permohonan = Permohonan::where('id', $id)->firstOrFail();
 
-        $canApprove = $user->isSuperAdmin() || $user->isAdmin();
+        $canApprove = $user->isSuperAdmin();
         if (!$canApprove) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Akses ditolak. Hanya Admin atau Super Admin yang berhak memberikan persetujuan (approval) akhir.',
+                'message' => 'Akses ditolak. Hanya Super Admin yang berhak memberikan persetujuan (approval) akhir.',
             ], 403);
         }
 
@@ -780,9 +790,9 @@ class PermohonanController extends Controller
             ], 422);
         }
 
-        // Otorisasi: Admin, SuperAdmin, PIC untuk layanannya, atau Pemohon pemilik permohonan
+        // Otorisasi: SuperAdmin, PIC untuk layanannya, atau Pemohon (User / Tata Usaha) pemilik permohonan
         $isAuthorized = false;
-        if (in_array($user->role, ['Admin', 'SuperAdmin'])) {
+        if ($user->role === 'SuperAdmin') {
             $isAuthorized = true;
         } elseif ($user->role === 'PIC') {
             $picCatMap = ['D' => 'Desain', 'P' => 'Publikasi', 'S' => 'Suvenir', 'M' => 'Multimedia', 'L' => 'Liputan'];
@@ -790,7 +800,7 @@ class PermohonanController extends Controller
             if ($permohonan->service?->code === $user->pic_service_code || ($catName && str_contains($permohonan->kategori ?? '', $catName))) {
                 $isAuthorized = true;
             }
-        } elseif ($user->role === 'User' && $permohonan->user_id === $user->id) {
+        } elseif (in_array($user->role, ['User', 'Tata Usaha']) && $permohonan->user_id === $user->id) {
             $isAuthorized = true;
         }
 

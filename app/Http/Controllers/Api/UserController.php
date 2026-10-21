@@ -3,76 +3,108 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Service;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
     /**
-     * List all users (SuperAdmin only)
+     * List all users with pagination, search, and filters (SuperAdmin only)
      */
     public function index(Request $request): JsonResponse
     {
-        $currentUser = Auth::user();
-        if (!$currentUser || $currentUser->role !== 'SuperAdmin') {
-            return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
+        $query = User::with('picService');
+
+        // Pencarian berdasarkan Nama, Username (NIP/NPM), Email, Unit Kerja
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('username', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('unit_kerja', 'like', "%{$search}%");
+            });
         }
 
-        $users = User::with('picService')
-            ->orderBy('name')
-            ->get()
-            ->map(function ($u) {
-                return [
-                    'id'               => $u->id,
-                    'name'             => $u->name,
-                    'username'         => $u->username,
-                    'email'            => $u->email,
-                    'unit_kerja'       => $u->unit_kerja,
-                    'role'             => $u->role,
-                    'pic_service_code' => $u->pic_service_code,
-                    'pic_service'      => $u->picService ? [
-                        'code' => $u->picService->code,
-                        'name' => $u->picService->name,
-                    ] : null,
-                ];
-            });
+        // Filter berdasarkan Role
+        if ($request->filled('role')) {
+            $query->where('role', $request->role);
+        }
 
-        return response()->json(['status' => 'success', 'data' => $users]);
+        // Filter berdasarkan Status (is_active)
+        if ($request->filled('status')) {
+            if ($request->status === 'active' || $request->status === '1' || $request->status === 'true') {
+                $query->where('is_active', true);
+            } elseif ($request->status === 'inactive' || $request->status === '0' || $request->status === 'false') {
+                $query->where('is_active', false);
+            }
+        }
+
+        $perPage = max(1, min((int) $request->input('per_page', 10), 100));
+
+        $users = $query->orderBy('name', 'asc')->paginate($perPage);
+
+        $users->getCollection()->transform(function ($u) {
+            return [
+                'id'               => $u->id,
+                'name'             => $u->name,
+                'username'         => $u->username,
+                'email'            => $u->email,
+                'unit_kerja'       => $u->unit_kerja,
+                'role'             => $u->role,
+                'is_active'        => (bool) ($u->is_active ?? true),
+                'pic_service_code' => $u->pic_service_code,
+                'pic_service'      => $u->picService ? [
+                    'code' => $u->picService->code,
+                    'name' => $u->picService->name,
+                ] : null,
+                'created_at'       => $u->created_at?->toIso8601String(),
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $users,
+        ]);
     }
 
     /**
-     * Assign a user as PIC for a service (SuperAdmin only)
+     * Ubah Role Pengguna (SuperAdmin / Tata Usaha / PIC / User)
      */
-    public function assignPic(Request $request, $userId): JsonResponse
+    public function updateRole(Request $request, $userId): JsonResponse
     {
         $currentUser = Auth::user();
-        if (!$currentUser || $currentUser->role !== 'SuperAdmin') {
-            return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
-        }
-
-        $request->validate([
-            'service_code' => 'nullable|string|in:D,P,S,M,L',
-        ]);
-
         $user = User::findOrFail($userId);
 
-        // Prevent changing SuperAdmin role
-        if ($user->role === 'SuperAdmin') {
-            return response()->json(['status' => 'error', 'message' => 'Tidak dapat mengubah role Super Admin.'], 422);
+        $request->validate([
+            'role'             => 'required|string|in:SuperAdmin,Tata Usaha,PIC,User',
+            'pic_service_code' => 'nullable|string|in:D,P,S,M,L',
+        ]);
+
+        $newRole = $request->role;
+        $picServiceCode = $request->pic_service_code;
+
+        // Cegah SuperAdmin mendowngrade akunnya sendiri
+        if ($currentUser && $user->id === $currentUser->id && $newRole !== 'SuperAdmin') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Anda tidak dapat menurunkan role akun Anda sendiri.',
+            ], 422);
         }
 
-        $serviceCode = $request->service_code;
-
-        if ($serviceCode) {
+        if ($newRole === 'PIC') {
+            if (!$picServiceCode) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Harap pilih jenis layanan untuk pengguna dengan role PIC.',
+                ], 422);
+            }
             $user->role = 'PIC';
-            $user->pic_service_code = $serviceCode;
+            $user->pic_service_code = $picServiceCode;
         } else {
-            // Remove PIC assignment - revert to User
-            $user->role = 'User';
+            $user->role = $newRole;
             $user->pic_service_code = null;
         }
 
@@ -80,9 +112,7 @@ class UserController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => $serviceCode
-                ? "Pengguna {$user->name} berhasil ditetapkan sebagai PIC layanan {$serviceCode}."
-                : "Pengguna {$user->name} berhasil diubah kembali menjadi User.",
+            'message' => "Role pengguna {$user->name} berhasil diperbarui menjadi {$user->role}" . ($user->role === 'PIC' ? " (Layanan {$user->pic_service_code})" : "") . ".",
             'data'    => [
                 'id'               => $user->id,
                 'name'             => $user->name,
@@ -93,61 +123,66 @@ class UserController extends Controller
     }
 
     /**
-     * Create a new user (SuperAdmin only)
+     * Toggle Status Akun (Aktifkan / Nonaktifkan)
      */
-    public function store(Request $request): JsonResponse
+    public function toggleStatus(Request $request, $userId): JsonResponse
     {
         $currentUser = Auth::user();
-        if (!$currentUser || $currentUser->role !== 'SuperAdmin') {
-            return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
+        $user = User::findOrFail($userId);
+
+        // Cegah menonaktifkan akun sendiri
+        if ($currentUser && $user->id === $currentUser->id) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Anda tidak dapat menonaktifkan akun Anda sendiri.',
+            ], 422);
         }
 
-        $request->validate([
-            'name'       => 'required|string|max:255',
-            'username'   => 'required|string|unique:users|max:50',
-            'email'      => 'required|email|unique:users',
-            'unit_kerja' => 'nullable|string|max:255',
-            'password'   => 'required|string|min:6',
-        ]);
+        // Cegah menonaktifkan sesama SuperAdmin
+        if ($user->role === 'SuperAdmin' && $user->is_active) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Tidak dapat menonaktifkan akun Super Admin.',
+            ], 422);
+        }
 
-        $user = User::create([
-            'name'       => $request->name,
-            'username'   => $request->username,
-            'email'      => $request->email,
-            'unit_kerja' => $request->unit_kerja,
-            'role'       => 'User',
-            'password'   => Hash::make($request->password),
-        ]);
+        if ($request->has('is_active')) {
+            $user->is_active = (bool) $request->is_active;
+        } else {
+            $user->is_active = !$user->is_active;
+        }
+
+        $user->save();
+
+        $statusText = $user->is_active ? 'diaktifkan' : 'dinonaktifkan';
 
         return response()->json([
             'status'  => 'success',
-            'message' => "Akun {$user->name} berhasil dibuat.",
-            'data'    => ['id' => $user->id, 'name' => $user->name, 'role' => $user->role],
+            'message' => "Akun {$user->name} berhasil {$statusText}.",
+            'data'    => [
+                'id'        => $user->id,
+                'name'      => $user->name,
+                'is_active' => (bool) $user->is_active,
+            ],
         ]);
     }
 
     /**
-     * Delete a user (SuperAdmin only)
+     * Assign a user as PIC for a service (SuperAdmin only)
+     * Tetap disediakan untuk backward compatibility
      */
-    public function destroy($userId): JsonResponse
+    public function assignPic(Request $request, $userId): JsonResponse
     {
-        $currentUser = Auth::user();
-        if (!$currentUser || $currentUser->role !== 'SuperAdmin') {
-            return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
-        }
+        $request->validate([
+            'service_code' => 'nullable|string|in:D,P,S,M,L',
+        ]);
 
-        $user = User::findOrFail($userId);
+        $serviceCode = $request->service_code;
+        $request->merge([
+            'role' => $serviceCode ? 'PIC' : 'User',
+            'pic_service_code' => $serviceCode,
+        ]);
 
-        if ($user->role === 'SuperAdmin') {
-            return response()->json(['status' => 'error', 'message' => 'Tidak dapat menghapus akun Super Admin.'], 422);
-        }
-
-        if ($user->id === $currentUser->id) {
-            return response()->json(['status' => 'error', 'message' => 'Tidak dapat menghapus akun sendiri.'], 422);
-        }
-
-        $user->delete();
-
-        return response()->json(['status' => 'success', 'message' => "Akun {$user->name} berhasil dihapus."]);
+        return $this->updateRole($request, $userId);
     }
 }

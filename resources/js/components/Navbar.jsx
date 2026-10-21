@@ -26,10 +26,10 @@ export default function Navbar({ currentTab, setCurrentTab }) {
     const picCode = user.pic_service_code;
 
     const navItems = [
-        { id: 'dashboard', label: 'Dasbor Utama', icon: LayoutDashboard, roles: ['User', 'Admin', 'SuperAdmin'] },
-        { id: 'tracking', label: 'Tracking Permohonan', icon: ListOrdered, roles: ['User', 'Admin', 'SuperAdmin', 'PIC'] },
-        { id: 'analytics', label: 'Dasbor Analitik', icon: BarChart3, roles: ['Admin', 'SuperAdmin', 'PIC'] },
-        { id: 'settings', label: 'Kelola Layanan', icon: Settings, roles: ['Admin', 'SuperAdmin'] },
+        { id: 'dashboard', label: 'Dasbor Utama', icon: LayoutDashboard, roles: ['User', 'Tata Usaha', 'SuperAdmin'] },
+        { id: 'tracking', label: 'Tracking Permohonan', icon: ListOrdered, roles: ['User', 'Tata Usaha', 'SuperAdmin', 'PIC'] },
+        { id: 'analytics', label: 'Dasbor Analitik', icon: BarChart3, roles: ['SuperAdmin', 'PIC'] },
+        { id: 'settings', label: 'Kelola Layanan', icon: Settings, roles: ['SuperAdmin'] },
         { id: 'users', label: 'Kelola Pengguna', icon: Users, roles: ['SuperAdmin'] },
     ];
 
@@ -47,7 +47,7 @@ export default function Navbar({ currentTab, setCurrentTab }) {
 
     const roleBadgeColor = {
         User: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        Admin: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        'Tata Usaha': 'bg-blue-50 text-blue-700 border-blue-200',
         SuperAdmin: 'bg-violet-50 text-violet-700 border-violet-200',
         PIC: 'bg-green-50 text-green-700 border-green-200',
     }[role] || 'bg-slate-100 text-slate-700';

@@ -10,12 +10,12 @@ const enrichUser = (userData) => {
     if (!userData) return null;
     return {
         ...userData,
-        isAdmin: () => ['Admin', 'SuperAdmin'].includes(userData.role),
         isSuperAdmin: () => userData.role === 'SuperAdmin',
+        isTataUsaha: () => userData.role === 'Tata Usaha',
         isPic: () => userData.role === 'PIC',
         isUser: () => userData.role === 'User',
         // Convenience: can access admin-level features
-        hasAdminAccess: () => ['Admin', 'SuperAdmin'].includes(userData.role),
+        hasAdminAccess: () => userData.role === 'SuperAdmin',
     };
 };
 
@@ -62,7 +62,6 @@ export const AuthProvider = ({ children }) => {
         } finally {
             localStorage.removeItem('sapt_active_tab');
             localStorage.removeItem('sapt_active_service');
-            sessionStorage.removeItem('sapt_redirect_after_login');
             setUser(null);
         }
     };

@@ -15,8 +15,7 @@ import {
     Gift,
     Video,
     Camera,
-    Info,
-    Sliders
+    Info
 } from 'lucide-react';
 import CustomSelect from '../components/CustomSelect';
 
@@ -38,9 +37,8 @@ const SERVICE_THEMES = {
 
 export default function SettingsPage() {
     const { user } = useAuth();
-    const canManage = ['Admin', 'SuperAdmin'].includes(user?.role);
+    const canManage = user?.role === 'SuperAdmin';
 
-    const [configs, setConfigs] = useState([]);
     const [services, setServices] = useState([]);
     const [selectedServiceCode, setSelectedServiceCode] = useState('D');
 
@@ -52,7 +50,6 @@ export default function SettingsPage() {
 
     const [loading, setLoading] = useState(true);
     const [savingService, setSavingService] = useState(false);
-    const [savingConfig, setSavingConfig] = useState(false);
     const [statusMsg, setStatusMsg] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
 
@@ -61,14 +58,7 @@ export default function SettingsPage() {
         setStatusMsg(null);
         setErrorMsg(null);
         try {
-            const [cfgRes, srvRes] = await Promise.all([
-                api.get('/config'),
-                api.get('/services'),
-            ]);
-
-            if (cfgRes.data?.status === 'success') {
-                setConfigs(cfgRes.data.data);
-            }
+            const srvRes = await api.get('/services');
             if (srvRes.data?.status === 'success') {
                 setServices(srvRes.data.data);
                 const current = srvRes.data.data.find(s => s.code === selectedServiceCode) || srvRes.data.data[0];
@@ -104,26 +94,7 @@ export default function SettingsPage() {
         }
     }, [selectedServiceCode, services]);
 
-    const handleConfigChange = (id, newVal) => {
-        setConfigs(prev => prev.map(c => c.id === id ? { ...c, config_value: newVal } : c));
-    };
 
-    const saveConfigs = async () => {
-        setSavingConfig(true);
-        setStatusMsg(null);
-        setErrorMsg(null);
-        try {
-            const payload = configs.map(c => ({ id: c.id, config_value: c.config_value }));
-            const res = await api.put('/config', { configs: payload });
-            if (res.data?.status === 'success') {
-                setStatusMsg('Parameter bisnis berhasil diperbarui.');
-            }
-        } catch (err) {
-            setErrorMsg(err.response?.data?.message || 'Gagal menyimpan konfigurasi parameter bisnis.');
-        } finally {
-            setSavingConfig(false);
-        }
-    };
 
     const saveServiceDetails = async () => {
         setSavingService(true);
@@ -190,10 +161,10 @@ export default function SettingsPage() {
                         <span className="text-xs text-slate-400 font-medium">Modul Kelola Layanan</span>
                     </div>
                     <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                        Kelola Layanan & Parameter Sistem
+                        Kelola Layanan
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                        Kelola informasi layanan, status operasional, syarat & ketentuan alur kerja (rules), serta parameter aturan bisnis.
+                        Kelola informasi layanan, status operasional, serta syarat & ketentuan alur kerja (rules).
                     </p>
                 </div>
             </div>
@@ -348,57 +319,7 @@ export default function SettingsPage() {
                 </div>
             </div>
 
-            {/* Parameter Bisnis (PRD NFR-MAINT-02) */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div className="flex items-center space-x-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
-                            <Sliders className="w-4 h-4" />
-                        </div>
-                        <div>
-                            <h3 className="font-extrabold text-sm text-slate-900">Parameter Aturan Bisnis</h3>
-                            <p className="text-[11px] text-slate-400">Konfigurasi batas kuota auto-approval dan durasi multimedia tanpa perlu deploy ulang kode.</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={saveConfigs}
-                        disabled={savingConfig}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center space-x-1.5 transition-colors disabled:opacity-50 cursor-pointer"
-                    >
-                        <Save className="w-4 h-4" />
-                        <span>{savingConfig ? 'Menyimpan...' : 'Simpan Parameter'}</span>
-                    </button>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                    {configs.map(cfg => (
-                        <div key={cfg.id} className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
-                            <div className="flex justify-between items-start">
-                                <span className="text-xs font-black text-slate-800">
-                                    {cfg.config_key === 'auto_approval_limit' ? 'Batas Auto-Approval Suvenir' : 'Durasi Maksimal Multimedia'}
-                                </span>
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                                    {cfg.service?.name || 'Sistem'}
-                                </span>
-                            </div>
-                            <p className="text-[11px] text-slate-500 leading-tight">
-                                {cfg.description}
-                            </p>
-                            <div className="pt-1 flex items-center space-x-2">
-                                <input
-                                    type="number"
-                                    value={cfg.config_value}
-                                    onChange={(e) => handleConfigChange(cfg.id, e.target.value)}
-                                    className="w-32 px-3 py-1.5 text-xs font-bold bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                                />
-                                <span className="text-xs text-slate-500 font-semibold">
-                                    {cfg.config_key === 'auto_approval_limit' ? 'unit' : 'menit'}
-                                </span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 }

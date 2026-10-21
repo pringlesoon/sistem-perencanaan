@@ -58,7 +58,7 @@ class InventoryController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = Auth::user();
-        if (!$user || (!in_array($user->role, ['Admin', 'SuperAdmin']) && !($user->role === 'PIC' && in_array($user->pic_service_code, ['S', 'M'])))) {
+        if (!$user || ($user->role !== 'SuperAdmin' && !($user->role === 'PIC' && in_array($user->pic_service_code, ['S', 'M'])))) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
         }
 
@@ -107,7 +107,7 @@ class InventoryController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $user = Auth::user();
-        if (!$user || (!in_array($user->role, ['Admin', 'SuperAdmin']) && !($user->role === 'PIC' && in_array($user->pic_service_code, ['S', 'M'])))) {
+        if (!$user || ($user->role !== 'SuperAdmin' && !($user->role === 'PIC' && in_array($user->pic_service_code, ['S', 'M'])))) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
         }
 
@@ -135,7 +135,7 @@ class InventoryController extends Controller
     public function adjust(Request $request, int $id): JsonResponse
     {
         $user = Auth::user();
-        if (!$user || (!in_array($user->role, ['Admin', 'SuperAdmin']) && !($user->role === 'PIC' && in_array($user->pic_service_code, ['S', 'M'])))) {
+        if (!$user || ($user->role !== 'SuperAdmin' && !($user->role === 'PIC' && in_array($user->pic_service_code, ['S', 'M'])))) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
         }
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import ServiceCard from '../components/ServiceCard';
 import api from '../services/api';
+import Swal from 'sweetalert2';
 import { Sparkles, ArrowRight, ListOrdered, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function DashboardPage({ onSelectService, onGoToTracking }) {
@@ -9,6 +10,20 @@ export default function DashboardPage({ onSelectService, onGoToTracking }) {
     const [services, setServices] = useState([]);
     const [summary, setSummary] = useState({ total: 0, active: 0, completed: 0, needsApproval: 0 });
     const [loading, setLoading] = useState(true);
+
+    const handleServiceCardClick = (code) => {
+        if (user?.role === 'User' && (code === 'S' || code === 'M')) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Akses Terbatas',
+                text: 'Mohon maaf, pengajuan layanan ini tidak dapat dilakukan secara langsung oleh akun Anda. Silakan hubungi PIC Layanan atau bagian Tata Usaha (TU) di fakultas Anda masing-masing untuk bantuan pengajuan.',
+                confirmButtonColor: '#4f46e5',
+                confirmButtonText: 'Mengerti',
+            });
+            return;
+        }
+        onSelectService(code);
+    };
 
     const loadDashboardData = async () => {
         try {
@@ -132,7 +147,7 @@ export default function DashboardPage({ onSelectService, onGoToTracking }) {
                             <ServiceCard
                                 key={service.id}
                                 service={service}
-                                onSelect={(code) => onSelectService(code)}
+                                onSelect={handleServiceCardClick}
                             />
                         ))}
                     </div>

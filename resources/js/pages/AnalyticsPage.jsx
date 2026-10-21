@@ -35,7 +35,7 @@ export default function AnalyticsPage() {
     });
 
     const isPic = user?.role === 'PIC';
-    const isSuperAdmin = ['SuperAdmin', 'Admin'].includes(user?.role);
+    const isSuperAdmin = user?.role === 'SuperAdmin';
 
     // Chart-specific states
     const [chartScope, setChartScope] = useState('ALL');

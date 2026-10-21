@@ -349,9 +349,9 @@ export default function RoomSchedulePage({ onNavigateToRequest, onOpenTrackingDe
                     </div>
                 </div>
 
-                {/* Right Action: Shortcut Pengajuan Permohonan for User */}
+                {/* Right Action: Shortcut Pengajuan Permohonan for User / Tata Usaha */}
                 <div className="flex flex-wrap items-center gap-2.5">
-                    {['User', 'Admin', 'SuperAdmin'].includes(user?.role) && onNavigateToRequest && (
+                    {['User', 'Tata Usaha', 'SuperAdmin'].includes(user?.role) && onNavigateToRequest && (
                         <button
                             type="button"
                             onClick={() => onNavigateToRequest('M')}

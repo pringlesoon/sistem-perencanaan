@@ -18,6 +18,7 @@ class User extends Authenticatable
         'email',
         'unit_kerja',
         'role',
+        'is_active',
         'pic_service_code',
         'password',
         'guid',
@@ -34,12 +35,17 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
-    public function isAdmin(): bool
+    protected static function booted(): void
     {
-        return $this->role === 'Admin';
+        static::creating(function (User $user) {
+            if (empty($user->password)) {
+                $user->password = \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(32));
+            }
+        });
     }
 
     public function isSuperAdmin(): bool
@@ -47,9 +53,14 @@ class User extends Authenticatable
         return $this->role === 'SuperAdmin';
     }
 
+    public function isTataUsaha(): bool
+    {
+        return $this->role === 'Tata Usaha';
+    }
+
     public function hasAdminAccess(): bool
     {
-        return in_array($this->role, ['Admin', 'SuperAdmin']);
+        return $this->role === 'SuperAdmin';
     }
 
     public function isPic(): bool

@@ -90,4 +90,13 @@ class AnalyticsRoleVisibilityTest extends TestCase
         $codes = collect($load)->pluck('code')->all();
         $this->assertEquals(['D', 'P', 'S', 'M', 'L'], $codes);
     }
+
+    public function test_user_and_tata_usaha_cannot_access_analytics()
+    {
+        $tu = User::factory()->create(['role' => 'Tata Usaha']);
+        $user = User::factory()->create(['role' => 'User']);
+
+        $this->actingAs($tu)->getJson('/api/v1/analytics')->assertStatus(403);
+        $this->actingAs($user)->getJson('/api/v1/analytics')->assertStatus(403);
+    }
 }

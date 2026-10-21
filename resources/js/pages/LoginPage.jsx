@@ -2,37 +2,12 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Lock, User, Sparkles, ArrowRight, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react';
 
-const SERVICE_NAMES = {
-    D: 'Layanan Desain Grafis',
-    P: 'Layanan Publikasi Website & Social Media',
-    S: 'Layanan Alat Promosi & Suvenir',
-    M: 'Layanan Multimedia, Dokumentasi, & Live Streaming',
-    L: 'Layanan Liputan & Berita',
-};
-
-const getRedirectMessage = (target) => {
-    if (!target) return null;
-    if (target.tab === 'request-form') {
-        const sName = SERVICE_NAMES[target.serviceCode] || 'Formulir Permohonan Layanan';
-        return `Silakan masuk terlebih dahulu untuk mengakses ${sName}.`;
-    }
-    if (target.tab === 'tracking') {
-        return 'Silakan masuk terlebih dahulu untuk mengakses Tracking Permohonan.';
-    }
-    if (target.tab === 'schedule-slots') {
-        return 'Silakan masuk terlebih dahulu untuk mengakses Cek Availability Multimedia.';
-    }
-    return 'Silakan masuk terlebih dahulu untuk melanjutkan ke halaman yang Anda tuju.';
-};
-
-export default function LoginPage({ onBackToGuest, onSuccess, redirectTarget }) {
+export default function LoginPage({ onBackToGuest, onSuccess }) {
     const { login } = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-
-    const redirectMessage = getRedirectMessage(redirectTarget);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -84,16 +59,6 @@ export default function LoginPage({ onBackToGuest, onSuccess, redirectTarget }) 
                     </p>
                 </div>
 
-                {/* Redirect Notice Banner */}
-                {redirectMessage && (
-                    <div className="mb-6 p-3.5 bg-emerald-50 border border-emerald-200/90 rounded-2xl text-xs text-emerald-800 flex items-start space-x-2.5 shadow-xs animate-in fade-in duration-200">
-                        <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                        <div className="leading-relaxed">
-                            <p className="font-bold text-emerald-900">{redirectMessage}</p>
-                            <p className="text-[11px] text-emerald-700 mt-0.5">Sistem akan otomatis mengarahkan Anda ke halaman tersebut setelah login berhasil.</p>
-                        </div>
-                    </div>
-                )}
 
                 {/* Error Banner */}
                 {error && (
@@ -162,17 +127,13 @@ export default function LoginPage({ onBackToGuest, onSuccess, redirectTarget }) 
                                 <p className="font-bold text-slate-700">andi</p>
                                 <p>Pemohon (User)</p>
                             </div>
+                            <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
+                                <p className="font-bold text-blue-700">sari</p>
+                                <p>Tata Usaha (TU)</p>
+                            </div>
                             <div className="bg-violet-50 p-2 rounded-lg border border-violet-100">
                                 <p className="font-bold text-violet-700">superadmin</p>
                                 <p>Super Admin</p>
-                            </div>
-                            <div className="bg-indigo-50 p-2 rounded-lg border border-indigo-100">
-                                <p className="font-bold text-indigo-700">ahmad</p>
-                                <p>PIC Desain</p>
-                            </div>
-                            <div className="bg-sky-50 p-2 rounded-lg border border-sky-100">
-                                <p className="font-bold text-sky-700">nurhaliza</p>
-                                <p>PIC Publikasi</p>
                             </div>
                             <div className="bg-amber-50 p-2 rounded-lg border border-amber-100">
                                 <p className="font-bold text-amber-700">bagas</p>
@@ -182,13 +143,9 @@ export default function LoginPage({ onBackToGuest, onSuccess, redirectTarget }) 
                                 <p className="font-bold text-emerald-700">dewi</p>
                                 <p>PIC Multimedia</p>
                             </div>
-                            <div className="bg-rose-50 p-2 rounded-lg border border-rose-100">
-                                <p className="font-bold text-rose-700">rizky</p>
-                                <p>PIC Liputan</p>
-                            </div>
-                            <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                <p className="font-bold text-slate-600">fajar, maya, dll</p>
-                                <p>User Biasa</p>
+                            <div className="bg-indigo-50 p-2 rounded-lg border border-indigo-100">
+                                <p className="font-bold text-indigo-700">ahmad, rizky, dll</p>
+                                <p>PIC Layanan Lain</p>
                             </div>
                         </div>
                     </div>

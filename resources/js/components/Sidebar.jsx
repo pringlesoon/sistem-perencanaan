@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext';
 import {
     LayoutDashboard,
     ListOrdered,
-    CheckSquare,
     BarChart3,
     Settings,
     ChevronLeft,
@@ -35,26 +34,23 @@ export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobi
     // Define navigation based on role
     const navItems = [];
 
-    if (['User', 'Admin', 'SuperAdmin', 'Guest'].includes(role)) {
+    if (['User', 'Tata Usaha', 'SuperAdmin', 'Guest'].includes(role)) {
         navItems.push({ id: 'dashboard', label: 'Dasbor Utama', icon: LayoutDashboard });
     }
-    if (['User', 'Admin', 'SuperAdmin', 'PIC', 'Guest'].includes(role)) {
+    if (['User', 'Tata Usaha', 'SuperAdmin', 'PIC', 'Guest'].includes(role)) {
         navItems.push({ id: 'tracking', label: role === 'PIC' ? 'Daftar Permohonan' : 'Tracking Permohonan', icon: ListOrdered });
     }
-    // Cek Availability Multimedia (Penjadwalan & Peminjaman Ruangan/Alat) untuk User, SuperAdmin, Admin
-    if (['User', 'Admin', 'SuperAdmin'].includes(role)) {
+    // Cek Availability Multimedia (Penjadwalan & Peminjaman Ruangan/Alat) untuk User, Tata Usaha, SuperAdmin
+    if (['User', 'Tata Usaha', 'SuperAdmin'].includes(role)) {
         navItems.push({ id: 'schedule-slots', label: 'Cek Availability Multimedia', icon: CalendarClock });
     }
-    if (['Admin', 'SuperAdmin', 'PIC'].includes(role)) {
+    if (['SuperAdmin', 'PIC'].includes(role)) {
         navItems.push({ id: 'analytics', label: 'Dasbor Analitik', icon: BarChart3 });
     }
-    if (['Admin', 'SuperAdmin'].includes(role)) {
+    if (role === 'SuperAdmin') {
         navItems.push({ id: 'stock', label: 'Manajemen Stok', icon: Package });
         navItems.push({ id: 'inventory-multimedia', label: 'Inventaris Alat', icon: Camera });
         navItems.push({ id: 'settings', label: 'Kelola Layanan', icon: Settings });
-    }
-    if (role === 'SuperAdmin') {
-        navItems.push({ id: 'approvals', label: 'Antrean Approval', icon: CheckSquare });
         navItems.push({ id: 'users', label: 'Kelola Pengguna', icon: Users });
     }
 
@@ -79,47 +75,45 @@ export default function Sidebar({ currentTab, setCurrentTab, mobileOpen, setMobi
 
 
     const sidebarContent = (isMobile = false) => (
-        <div className={`flex flex-col h-full bg-white border-r border-slate-200 relative ${collapsed && !isMobile ? 'w-[72px]' : 'w-[260px]'} transition-all duration-300`}>
+        <div className={`flex flex-col h-full bg-white border-r border-slate-200/70 shadow-[2px_0_8px_rgba(0,0,0,0.02)] relative ${collapsed && !isMobile ? 'w-[72px]' : 'w-[260px]'} transition-all duration-300`}>
             {/* Collapse toggle button */}
             {!isMobile && (
                 <button
                     onClick={() => setCollapsed(!collapsed)}
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 p-1 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors z-50 shadow-sm"
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 p-1 rounded-full bg-white border border-slate-200/80 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors z-50 shadow-xs cursor-pointer"
                     title={collapsed ? 'Buka Sidebar' : 'Tutup Sidebar'}
                 >
                     <ChevronLeft className={`w-3.5 h-3.5 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
                 </button>
             )}
 
-            {/* Brand Header */}
-            <div className={`border-b border-slate-100 ${collapsed && !isMobile ? 'p-4 flex justify-center' : 'p-4'}`}>
-                <div className="flex items-center justify-between w-full">
-                    <div
-                        className="flex items-center space-x-3 cursor-pointer group"
-                        onClick={handleLogoClick}
-                        title={role === 'PIC' ? 'Kembali ke Daftar Permohonan' : 'Kembali ke Dasbor Utama'}
-                    >
-                        <img
-                            src="/images/logo-yarsi.png"
-                            alt="Logo YARSI"
-                            className="w-10 h-10 object-contain shrink-0 group-hover:scale-105 transition-transform"
-                        />
-                        {(!collapsed || isMobile) && (
-                            <div className="min-w-0">
-                                <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">SLM YARSI</p>
-                                <p className="text-[10px] text-slate-500 font-medium leading-tight truncate">Sistem Layanan Marketing</p>
-                            </div>
-                        )}
-                    </div>
-                    {isMobile && (
-                        <button
-                            onClick={() => setMobileOpen(false)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+            {/* Brand Header — disamakan h-14 (56px) dengan TopBar agar garis pembatas sejajar sempurna */}
+            <div className={`h-14 shrink-0 px-4 flex items-center border-b border-slate-100/80 ${collapsed && !isMobile ? 'justify-center px-2' : 'justify-between'}`}>
+                <div
+                    className="flex items-center space-x-2.5 cursor-pointer group min-w-0"
+                    onClick={handleLogoClick}
+                    title={role === 'PIC' ? 'Kembali ke Daftar Permohonan' : 'Kembali ke Dasbor Utama'}
+                >
+                    <img
+                        src="/images/logo-yarsi.png"
+                        alt="Logo YARSI"
+                        className="w-8 h-8 object-contain shrink-0 group-hover:scale-105 transition-transform"
+                    />
+                    {(!collapsed || isMobile) && (
+                        <div className="min-w-0">
+                            <p className="font-black text-slate-900 text-xs leading-tight tracking-tight truncate">SLM YARSI</p>
+                            <p className="text-[10px] text-slate-500 font-medium leading-tight truncate">Sistem Layanan Marketing</p>
+                        </div>
                     )}
                 </div>
+                {isMobile && (
+                    <button
+                        onClick={() => setMobileOpen(false)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                )}
             </div>
 
 

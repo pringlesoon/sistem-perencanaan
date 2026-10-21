@@ -27,13 +27,30 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = $this->ldapService->authenticate($request->username, $request->password);
+        try {
+            $user = $this->ldapService->authenticate($request->username, $request->password);
+        } catch (\DomainException $e) {
+            if ($e->getMessage() === 'ACCOUNT_DISABLED') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Akun Anda dinonaktifkan. Silakan hubungi Superadmin atau administrator sistem.',
+                ], 403);
+            }
+            throw $e;
+        }
 
         if (!$user) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Kredensial LDAP tidak valid atau akun tidak terdaftar pada direktori institusi.',
             ], 401);
+        }
+
+        if (isset($user->is_active) && !$user->is_active) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akun Anda dinonaktifkan. Silakan hubungi Superadmin atau administrator sistem.',
+            ], 403);
         }
 
         Auth::login($user, true);
@@ -50,6 +67,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'unit_kerja' => $user->unit_kerja,
                     'role' => $user->role,
+                    'is_active' => (bool) ($user->is_active ?? true),
                     'pic_service_code' => $user->pic_service_code,
                 ],
             ],
@@ -70,6 +88,15 @@ class AuthController extends Controller
             ], 401);
         }
 
+        if (isset($user->is_active) && !$user->is_active) {
+            Auth::logout();
+            $request->session()->invalidate();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akun Anda telah dinonaktifkan.',
+            ], 403);
+        }
+
         return response()->json([
             'status' => 'success',
             'data' => [
@@ -80,6 +107,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'unit_kerja' => $user->unit_kerja,
                     'role' => $user->role,
+                    'is_active' => (bool) ($user->is_active ?? true),
                     'pic_service_code' => $user->pic_service_code,
                 ],
             ],

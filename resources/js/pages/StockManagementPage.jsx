@@ -31,7 +31,7 @@ export default function StockManagementPage({ initialTab = 'suvenir' }) {
     const picCode = user?.pic_service_code;
     const isPicS = user?.role === 'PIC' && picCode === 'S';
     const isPicM = user?.role === 'PIC' && picCode === 'M';
-    const isAdmin = ['Admin', 'SuperAdmin'].includes(user?.role);
+    const isAdmin = user?.role === 'SuperAdmin';
 
     // Default tab: if PIC M, default to multimedia, else suvenir
     const [activeCategory, setActiveCategory] = useState(

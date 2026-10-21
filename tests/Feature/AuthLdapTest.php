@@ -53,17 +53,17 @@ class AuthLdapTest extends TestCase
     }
 
     /**
-     * AC-03: Role Admin dan Approver termapping dengan benar
+     * AC-03: Role Tata Usaha termapping dengan benar
      */
-    public function test_role_mapping_for_admin_and_approver(): void
+    public function test_role_mapping_for_tata_usaha(): void
     {
-        // Admin
-        $resAdmin = $this->postJson('/api/v1/auth/login', [
+        // Tata Usaha
+        $resTu = $this->postJson('/api/v1/auth/login', [
             'username' => 'sari',
             'password' => 'password',
         ]);
-        $resAdmin->assertStatus(200)
-            ->assertJsonPath('data.user.role', 'Admin');
+        $resTu->assertStatus(200)
+            ->assertJsonPath('data.user.role', 'Tata Usaha');
 
         // Approver
         $resApprover = $this->postJson('/api/v1/auth/login', [
@@ -72,5 +72,34 @@ class AuthLdapTest extends TestCase
         ]);
         $resApprover->assertStatus(200)
             ->assertJsonPath('data.user.role', 'Approver');
+    }
+
+    /**
+     * AC-04: User yang dinonaktifkan (is_active = false) ditolak saat login meskipun password benar (403)
+     */
+    public function test_inactive_user_cannot_login_even_with_valid_credentials(): void
+    {
+        // Buat user di DB lokal yang berstatus nonaktif
+        User::create([
+            'username' => 'andi',
+            'name' => 'Andi Saputra',
+            'email' => 'andi@kampus.ac.id',
+            'unit_kerja' => 'Biro Akademik',
+            'role' => 'User',
+            'is_active' => false,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'username' => 'andi',
+            'password' => 'password',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'status' => 'error',
+                'message' => 'Akun Anda dinonaktifkan. Silakan hubungi Superadmin atau administrator sistem.',
+            ]);
+
+        $this->assertGuest();
     }
 }

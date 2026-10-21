@@ -26,9 +26,9 @@ class SuvenirStockDeductionTest extends TestCase
         parent::setUp();
 
         $this->user = User::factory()->create([
-            'name' => 'Pemohon Test',
-            'role' => 'User',
-            'unit_kerja' => 'Fakultas Kedokteran',
+            'name' => 'Pemohon TU Test',
+            'role' => 'Tata Usaha',
+            'unit_kerja' => 'Tata Usaha Fakultas Kedokteran',
         ]);
 
         $this->pic = User::factory()->create([
@@ -40,9 +40,9 @@ class SuvenirStockDeductionTest extends TestCase
         ]);
 
         $this->admin = User::factory()->create([
-            'name' => 'Admin Sari',
+            'name' => 'SuperAdmin Sari',
             'username' => 'sari',
-            'role' => 'Admin',
+            'role' => 'SuperAdmin',
             'unit_kerja' => 'Humas & Marketing',
         ]);
 

@@ -63,11 +63,13 @@ Route::prefix('v1')->group(function () {
     Route::get('/export/csv', [ExportController::class, 'csv']);
     Route::get('/export/excel', [ExportController::class, 'excel']);
 
-    // 9. Kelola User (SuperAdmin only)
-    Route::get('/users', [UserController::class, 'index']);
-    Route::post('/users', [UserController::class, 'store']);
-    Route::delete('/users/{id}', [UserController::class, 'destroy']);
-    Route::patch('/users/{id}/assign-pic', [UserController::class, 'assignPic']);
+    // 9. Kelola User (SuperAdmin only via middleware)
+    Route::middleware(['superadmin'])->group(function () {
+        Route::get('/users', [UserController::class, 'index']);
+        Route::patch('/users/{id}/role', [UserController::class, 'updateRole']);
+        Route::patch('/users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
+        Route::patch('/users/{id}/assign-pic', [UserController::class, 'assignPic']);
+    });
 
     // 10. Modul Inventaris & Stok (Suvenir & Multimedia)
     Route::get('/inventory', [\App\Http\Controllers\Api\InventoryController::class, 'index']);
